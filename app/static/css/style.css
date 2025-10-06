@@ -1,0 +1,16 @@
+body{font-family:system-ui,Arial,sans-serif;margin:0;background:#fafafa;color:#222}
+.container{max-width:960px;margin:0 auto;padding:1rem}
+.navbar{background:#111;color:#fff}
+.navbar .brand{color:#fff;text-decoration:none;font-weight:700;margin-right:1rem}
+.nav{list-style:none;display:flex;gap:1rem}
+.nav a{color:#fff;text-decoration:none}
+.hero{padding:2rem;background:#fff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.btn{display:inline-block;background:#1e88e5;color:#fff;padding:.6rem 1rem;border-radius:6px;text-decoration:none}
+.form-row{margin:.5rem 0;display:flex;flex-direction:column}
+.flash .flash-item{background:#fffae6;border:1px solid #ffd666;padding:.5rem;margin:.25rem 0;border-radius:4px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
+.card{background:#fff;border:1px solid #eee;padding:1rem;border-radius:8px}
+.table{width:100%;border-collapse:collapse;background:#fff}
+.table th,.table td{border:1px solid #eee;padding:.5rem;text-align:left}
+@media(max-width:800px){.grid{grid-template-columns:1fr}.cards{grid-template-columns:repeat(2,1fr)}}

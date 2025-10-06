@@ -1,0 +1,6 @@
+{% extends 'base.html' %}
+{% block title %}Quiz{% endblock %}
+{% block content %}
+<div id="quiz-root"></div>
+<script src="{{ url_for('static', filename='js/quiz.js') }}"></script>
+{% endblock %}

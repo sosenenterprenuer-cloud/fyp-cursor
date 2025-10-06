@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block title %}Register{% endblock %}
+{% block content %}
+<h2>Register</h2>
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ session.csrf_token }}">
+  <div class="form-row">
+    <label>Name</label>
+    <input type="text" name="name" required>
+  </div>
+  <div class="form-row">
+    <label>Email</label>
+    <input type="email" name="email" required>
+  </div>
+  <div class="form-row">
+    <label>Program</label>
+    <input type="text" name="program">
+  </div>
+  <div class="form-row">
+    <label>Password</label>
+    <input type="password" name="password" required>
+  </div>
+  <button class="btn" type="submit">Create Account</button>
+</form>
+<p>Already have an account? <a href="{{ url_for('login') }}">Login</a></p>
+{% endblock %}
