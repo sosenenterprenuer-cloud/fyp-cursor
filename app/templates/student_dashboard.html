@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h2>Student Dashboard</h2>
+<div class="grid">
+  <div>
+    <h3>Progress Over Time</h3>
+    <canvas id="scoreChart" width="400" height="200"></canvas>
+  </div>
+  <div>
+    <h3>Next Step</h3>
+    <div class="card">
+      {% if next_step %}
+        <p>Focus next: <strong>{{ next_step }}</strong></p>
+      {% else %}
+        <p>All concepts mastered. Great job!</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<h3>Per-Concept</h3>
+<div class="cards">
+  {% for c in per_concept %}
+  <div class="card">
+    <h4>{{ c.concept_tag }}</h4>
+    <p>Accuracy: {{ '%.0f'|format(c.acc_pct) }}%</p>
+    <p>Avg Time: {{ '%.1f'|format(c.avg_time) }}s</p>
+    <p>Mastered: {{ 'Yes' if c.mastered else 'No' }}</p>
+  </div>
+  {% endfor %}
+</div>
+
+<h3>Last Attempt Details</h3>
+<table class="table">
+  <thead>
+    <tr><th>#</th><th>Question</th><th>Your Answer</th><th>Correct</th><th>Time(s)</th><th>Category</th></tr>
+  </thead>
+  <tbody>
+    {% for d in last_details %}
+    <tr>
+      <td>{{ loop.index }}</td>
+      <td>{{ d.question }}</td>
+      <td>{{ d.answer }}</td>
+      <td>{{ '✔' if d.score == 1 else '✘' }}</td>
+      <td>{{ '%.1f'|format(d.response_time_s) }}</td>
+      <td>{{ d.time_category }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<script>
+  const labels = {{ labels|tojson }};
+  const scores = {{ scores|tojson }};
+  const ctx = document.getElementById('scoreChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets: [{ label: 'Score %', data: scores, borderColor: '#1e88e5' }] },
+    options: { scales: { y: { beginAtZero: true, max: 100 } } }
+  });
+</script>
+{% endblock %}
