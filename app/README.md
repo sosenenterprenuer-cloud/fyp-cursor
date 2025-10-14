@@ -10,6 +10,16 @@ A self-contained Flask web app for practicing database normalization concepts wi
 - Student dashboard with score chart and per-concept cards
 - Modules page for learning resources
 
+## Local setup
+
+- Ensure Python 3.10+ and `pip` are installed.
+- Install deps: `pip install -r requirements.txt` (if using a venv, activate it first).
+- Initialize the SQLite database one of two ways:
+  - Automatic: The app creates tables on first run when it can't find the `student` table.
+  - Manual: Run `python -m app.init_db` (optionally set `PLA_DB=/path/to/db.sqlite`).
+
+The database filename defaults to `pla.db` in the project root. Override with `PLA_DB` env var.
+
 ## Stack
 - Python 3.11, Flask, Jinja2
 - SQLite3 (no ORM), python-dotenv
