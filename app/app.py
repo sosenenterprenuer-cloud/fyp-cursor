@@ -2,7 +2,7 @@ import os
 import json
 import sqlite3
 import secrets
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import wraps
 from typing import Any, Dict, List
 
@@ -217,7 +217,7 @@ def _get_or_create_open_attempt(student_id: int) -> int:
     row = cur.fetchone()
     if row:
         return int(row["attempt_id"])
-    started_at = datetime.utcnow().isoformat()
+    started_at = datetime.now(timezone.utc).isoformat()
     db.execute(
         "INSERT INTO attempt (student_id, nf_scope, started_at, items_total, items_correct, score_pct) VALUES (?,?,?,?,?,?)",
         (student_id, "FD+1NF+2NF+3NF", started_at, 10, 0, 0.0),
@@ -333,7 +333,7 @@ def submit():
         )
 
     score_pct = (correct / total * 100.0) if total else 0.0
-    finished_at = datetime.utcnow().isoformat()
+    finished_at = datetime.now(timezone.utc).isoformat()
     db.execute(
         "UPDATE attempt SET finished_at=?, items_total=?, items_correct=?, score_pct=? WHERE attempt_id=?",
         (finished_at, total, correct, score_pct, attempt_id),
