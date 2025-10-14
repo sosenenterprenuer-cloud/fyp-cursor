@@ -2,7 +2,7 @@ import os
 import json
 import sqlite3
 import secrets
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import wraps
 from typing import Any, Dict, List
 
@@ -24,12 +24,39 @@ from dotenv import load_dotenv
 # Load environment
 load_dotenv()
 
-app = Flask(__name__, static_folder="static", template_folder="templates")
+_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+app = Flask(
+    __name__,
+    static_folder=os.path.join(_BASE_DIR, "static"),
+    template_folder=os.path.join(_BASE_DIR, "templates"),
+)
 app.secret_key = os.environ.get("FLASK_SECRET", "dev-secret")
 app.config["JSON_SORT_KEYS"] = False
 
 
 # --- Database helpers ---
+
+def ensure_schema_initialized(conn: sqlite3.Connection) -> None:
+    """Create schema and seed data on first run.
+
+    We consider the DB uninitialized if the `student` table is missing.
+    In that case, execute `schema.sql` followed by `seed.sql` bundled with the app.
+    """
+    check = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='student'"
+    ).fetchone()
+    if check is not None:
+        return
+
+    base_dir = os.path.dirname(__file__)
+    schema_path = os.path.join(base_dir, "schema.sql")
+    seed_path = os.path.join(base_dir, "seed.sql")
+
+    with open(schema_path, "r", encoding="utf-8") as f:
+        conn.executescript(f.read())
+    with open(seed_path, "r", encoding="utf-8") as f:
+        conn.executescript(f.read())
+    conn.commit()
 
 def get_db() -> sqlite3.Connection:
     if "db" not in g:
@@ -37,6 +64,8 @@ def get_db() -> sqlite3.Connection:
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA foreign_keys=ON")
+        # Ensure schema exists for fresh databases
+        ensure_schema_initialized(conn)
         g.db = conn
     return g.db  # type: ignore[return-value]
 
@@ -188,7 +217,7 @@ def _get_or_create_open_attempt(student_id: int) -> int:
     row = cur.fetchone()
     if row:
         return int(row["attempt_id"])
-    started_at = datetime.utcnow().isoformat()
+    started_at = datetime.now(timezone.utc).isoformat()
     db.execute(
         "INSERT INTO attempt (student_id, nf_scope, started_at, items_total, items_correct, score_pct) VALUES (?,?,?,?,?,?)",
         (student_id, "FD+1NF+2NF+3NF", started_at, 10, 0, 0.0),
@@ -304,7 +333,7 @@ def submit():
         )
 
     score_pct = (correct / total * 100.0) if total else 0.0
-    finished_at = datetime.utcnow().isoformat()
+    finished_at = datetime.now(timezone.utc).isoformat()
     db.execute(
         "UPDATE attempt SET finished_at=?, items_total=?, items_correct=?, score_pct=? WHERE attempt_id=?",
         (finished_at, total, correct, score_pct, attempt_id),
