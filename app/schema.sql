@@ -15,7 +15,8 @@ CREATE TABLE IF NOT EXISTS quiz (
   correct_answer TEXT NOT NULL,
   nf_level TEXT NOT NULL,
   concept_tag TEXT NOT NULL,
-  explanation TEXT
+  explanation TEXT,
+  two_category TEXT
 );
 
 CREATE TABLE IF NOT EXISTS attempt (
@@ -27,6 +28,7 @@ CREATE TABLE IF NOT EXISTS attempt (
   items_total INTEGER,
   items_correct INTEGER,
   score_pct REAL,
+  source TEXT DEFAULT 'live',
   FOREIGN KEY(student_id) REFERENCES student(student_id) ON DELETE CASCADE
 );
 
@@ -70,6 +72,25 @@ CREATE TABLE IF NOT EXISTS recommendation (
   created_at TEXT NOT NULL,
   FOREIGN KEY(student_id) REFERENCES student(student_id) ON DELETE CASCADE,
   FOREIGN KEY(module_id) REFERENCES module(module_id)
+);
+
+CREATE TABLE IF NOT EXISTS module_progress (
+  progress_id   INTEGER PRIMARY KEY,
+  student_id    INTEGER NOT NULL,
+  module_key    TEXT    NOT NULL,
+  score         INTEGER NOT NULL,
+  completed_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(student_id, module_key),
+  FOREIGN KEY(student_id) REFERENCES student(student_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS feedback (
+  feedback_id   INTEGER PRIMARY KEY,
+  student_id    INTEGER,
+  rating        INTEGER NOT NULL,
+  comment       TEXT,
+  created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY(student_id) REFERENCES student(student_id) ON DELETE SET NULL
 );
 
 -- Useful indexes
