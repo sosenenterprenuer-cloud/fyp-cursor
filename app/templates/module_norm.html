@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% from '_partials_learning.html' import flashcard, mcq %}
+{% block title %}Normalization & Dependencies{% endblock %}
+{% block content %}
+
+<h2>Normalization & Dependencies</h2>
+
+<section class="section">
+  <h3>Concept Summary</h3>
+  <p>Functional Dependencies (FDs) show how attributes determine each other (X→Y). Normalize to avoid anomalies: 1NF (atomic values), 2NF (no partial dependency on composite keys), 3NF (no transitive dependency between non-keys).</p>
+  </section>
+
+<section class="section">
+  <h3>Mini Example</h3>
+  <p><strong>Metaphor:</strong> Don’t pack many items into one pocket (1NF). Don’t rely on half a key (2NF). Don’t rely on a friend’s friend (3NF).</p>
+  <p><strong>Real:</strong> <code>Enrollment(StudentID, CourseID, Grade, CourseName)</code> PK=(StudentID,CourseID). CourseName depends on CourseID → partial dependency → move CourseName to <code>Course</code>. If Course has LecturerName via LecturerID = transitive → split to <code>Lecturer</code>.</p>
+</section>
+
+<section class="section">
+  <h3>Flashcards</h3>
+  <div class="cards">
+    {{ flashcard("FD meaning?", "X→Y: same X implies same Y.") }}
+    {{ flashcard("What is 1NF?", "Each attribute stores a single, atomic value.") }}
+    {{ flashcard("2NF vs 3NF?", "2NF removes partial deps; 3NF removes transitive deps.") }}
+  </div>
+</section>
+
+<section class="section" id="norm-quiz">
+  <h3>Quick Check</h3>
+  {{ mcq("norm_q1","Not 1NF example?","Phone='012-7890'","Phones=['012-7890','019-1111']","Split into Phone table","b") }}
+  {{ mcq("norm_q2","Partial dependency occurs when…","Non-key depends on entire key","Non-key depends on part of composite key","Non-key depends on another non-key","b") }}
+  {{ mcq("norm_q3","Transitive dependency is…","Key→Non-key directly","Non-key→Non-key chain","No dependency","b") }}
+  <p class="mcq-result"></p><p class="completion-badge"></p>
+  <button class="btn" onclick="gradeModule('norm-quiz','norm')">Check Answers</button>
+</section>
+
+{% endblock %}
+
+
+

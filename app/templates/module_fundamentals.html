@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% from '_partials_learning.html' import flashcard, mcq %}
+{% block title %}Data Modeling & DBMS Fundamentals{% endblock %}
+{% block content %}
+
+<h2>Data Modeling & DBMS Fundamentals</h2>
+
+<section class="section">
+  <h3>Concept Summary</h3>
+  <p>Model the real world with entities/attributes/relationships. Understand tables (relations), rows (records/tuples), columns (fields). Use keys (primary/foreign/candidate) and constraints to keep data accurate. DBMS beats file-based systems by reducing redundancy and improving consistency/security.</p>
+</section>
+
+<section class="section">
+  <h3>Mini Example</h3>
+  <p><strong>Metaphor:</strong> Library. Books (entity) with attributes (Title, ISBN). Members borrow books (relationship). Barcodes = keys.</p>
+  <p><strong>Real:</strong> ERD → <code>Book(ISBN PK, Title, AuthorID FK)</code>, <code>Author(AuthorID PK, Name)</code>, <code>Loan(LoanID PK, MemberID FK, ISBN FK)</code>.</p>
+</section>
+
+<section class="section">
+  <h3>Flashcards</h3>
+  <div class="cards">
+    {{ flashcard("Entity vs Attribute?", "Entity is a thing; attributes are its properties.") }}
+    {{ flashcard("Primary vs Foreign key?", "PK identifies a row; FK references a PK in another table.") }}
+    {{ flashcard("Why DBMS over files?", "Less redundancy, better integrity, shared access, security.") }}
+  </div>
+  </section>
+
+<section class="section" id="fund-quiz">
+  <h3>Quick Check</h3>
+  {{ mcq("fund_q1","Foreign key does what?","Uniquely identifies the same row","Links rows across tables","Speeds up full scan","b") }}
+  {{ mcq("fund_q2","An attribute in ER modeling is…","A relationship line","A property of an entity","A whole table","b") }}
+  {{ mcq("fund_q3","A row in a table is…","Field","Record/Tuple","Index","b") }}
+  <p class="mcq-result"></p><p class="completion-badge"></p>
+  <button class="btn" onclick="gradeModule('fund-quiz','fundamentals')">Check Answers</button>
+</section>
+
+{% endblock %}
+
+
+

@@ -1,0 +1,20 @@
+{% macro flashcard(q, a) -%}
+<div class="card flip" tabindex="0">
+  <div class="card-inner">
+    <div class="card-front"><strong>Q:</strong> {{ q }}</div>
+    <div class="card-back"><strong>A:</strong> {{ a }}</div>
+  </div>
+  </div>
+{%- endmacro %}
+
+{% macro mcq(id, prompt, a, b, c, ans) -%}
+<div class="mcq" data-ans="{{ ans }}">
+  <p class="mcq-q">{{ prompt }}</p>
+  <label><input type="radio" name="{{id}}" value="a"> a) {{ a }}</label><br>
+  <label><input type="radio" name="{{id}}" value="b"> b) {{ b }}</label><br>
+  <label><input type="radio" name="{{id}}" value="c"> c) {{ c }}</label>
+</div>
+{%- endmacro %}
+
+
+

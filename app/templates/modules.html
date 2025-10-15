@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block title %}Learning Modules{% endblock %}
+{% block content %}
+<div class="modules-header">
+  <h1>Learning Modules</h1>
+  <p>Master database normalization concepts through these interactive modules.</p>
+</div>
+
+<div class="modules-grid">
+  {% for module in modules %}
+  <div class="module-card">
+    <div class="module-header">
+      <h3>{{ module.title }}</h3>
+      <span class="nf-level">{{ module.nf_level }}</span>
+    </div>
+    <p class="module-description">{{ module.description }}</p>
+    <div class="module-actions">
+      <a href="{{ url_for('module_page', module_id=module.module_id) }}" class="btn btn-primary">
+        Study Module
+      </a>
+      {% if module.resource_url %}
+        <a href="{{ module.resource_url }}" target="_blank" class="btn btn-secondary">
+          External Resource
+        </a>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="modules-footer">
+  <p>Complete all modules to master database normalization concepts.</p>
+  <a href="{{ url_for('student_dashboard', student_id=session.get('student_id')) }}" class="btn">
+    Back to Dashboard
+  </a>
+</div>
+{% endblock %}

@@ -1,6 +1,48 @@
 {% extends 'base.html' %}
 {% block title %}Quiz{% endblock %}
 {% block content %}
-<div id="quiz-root"></div>
+<div class="quiz-container">
+  <div id="quiz-root">
+    <div class="quiz-loading">
+      <h2>Loading Quiz...</h2>
+      <p>Preparing your quiz questions...</p>
+    </div>
+  </div>
+</div>
+
+<!-- Result Modal -->
+<div id="result-modal" class="modal" style="display: none;">
+  <div class="modal-content">
+    <div class="result-header">
+      <h2>Quiz Complete!</h2>
+    </div>
+    
+    <div class="result-score">
+      <div class="score-circle">
+        <span id="result-percentage">0%</span>
+      </div>
+      <p id="result-message">Loading...</p>
+    </div>
+    
+    <div class="result-actions">
+      <button id="retake-btn" class="btn btn-primary" style="display: none;">
+        Retake Quiz
+      </button>
+      <button id="next-topic-btn" class="btn btn-secondary" style="display: none;">
+        Continue to Next Topic
+      </button>
+    </div>
+    
+    <div class="result-feedback">
+      <h3>Question Feedback</h3>
+      <div id="feedback-list"></div>
+    </div>
+    
+    <div class="result-close">
+      <button id="close-result" class="btn btn-outline">Close</button>
+    </div>
+  </div>
+</div>
+
 <script src="{{ url_for('static', filename='js/quiz.js') }}"></script>
 {% endblock %}

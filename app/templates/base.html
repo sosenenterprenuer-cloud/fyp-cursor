@@ -14,16 +14,20 @@
       <ul class="nav">
         <li><a href="{{ url_for('index') }}">Home</a></li>
         {% if session.get('student_id') %}
-          <li><a href="{{ url_for('quiz') }}">Quiz</a></li>
           <li><a href="{{ url_for('student_dashboard', student_id=session.get('student_id')) }}">Dashboard</a></li>
-          <li><a href="{{ url_for('module_page', module_id=1) }}">Modules</a></li>
-          <li><a href="{{ url_for('logout') }}">Logout</a></li>
-        {% else %}
-          <li><a href="{{ url_for('module_page', module_id=1) }}">Modules</a></li>
-          <li><a href="{{ url_for('login') }}">Login</a></li>
-          <li><a href="{{ url_for('register') }}">Register</a></li>
+          <li><a href="{{ url_for('modules') }}">Modules</a></li>
         {% endif %}
       </ul>
+      {% if session.get('student_id') %}
+        <div class="nav-right">
+          <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
+        </div>
+      {% else %}
+        <div class="nav-right">
+          <a href="{{ url_for('login') }}">Login</a>
+          <a href="{{ url_for('register') }}">Register</a>
+        </div>
+      {% endif %}
     </div>
   </nav>
 
@@ -40,6 +44,26 @@
 
     {% block content %}{% endblock %}
   </main>
+
+<script>
+function gradeModule(containerId, moduleKey){
+  const box = document.getElementById(containerId);
+  const qs = box.querySelectorAll('.mcq');
+  let score = 0;
+  qs.forEach(q=>{
+    const ans = q.getAttribute('data-ans');
+    const picked = (q.querySelector('input[type=radio]:checked') || {}).value;
+    if (picked === ans) score++;
+  });
+  box.querySelector('.mcq-result').textContent = `Score: ${score}/3`;
+  if (score >= 2) box.querySelector('.completion-badge').textContent = '✅ Completed';
+  fetch('/api/module_progress', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ module_key: moduleKey, score })
+  });
+}
+</script>
 
 </body>
 </html>

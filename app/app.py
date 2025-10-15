@@ -4,7 +4,7 @@ import sqlite3
 import secrets
 from datetime import datetime
 from functools import wraps
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from flask import (
     Flask,
@@ -37,6 +37,28 @@ def get_db() -> sqlite3.Connection:
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA foreign_keys=ON")
+        # Ensure database schema and seed data exist on first run
+        try:
+            cur = conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='module'"
+            )
+            has_module_table = cur.fetchone() is not None
+        except Exception:
+            has_module_table = False
+
+        if not has_module_table:
+            base_dir = os.path.dirname(__file__)
+            schema_path = os.path.join(base_dir, "schema.sql")
+            seed_path = os.path.join(base_dir, "seed.sql")
+            try:
+                with open(schema_path, "r", encoding="utf-8") as f:
+                    conn.executescript(f.read())
+                with open(seed_path, "r", encoding="utf-8") as f:
+                    conn.executescript(f.read())
+                conn.commit()
+            except FileNotFoundError:
+                # If SQL files are missing, leave DB uninitialized but don't crash
+                pass
         g.db = conn
     return g.db  # type: ignore[return-value]
 
@@ -92,6 +114,95 @@ def categorize_time(seconds: float) -> str:
     if seconds <= 20:
         return "Normal"
     return "Slow"
+
+
+def get_two_category_mastery(student_id: int):
+    """
+    Returns mastery for the two concepts using live attempts only.
+
+    points per concept = accuracy% * 0.5  (so 100% accuracy == 50 pts)
+    pass per concept    = points >= 17.5  (35% of 50)
+    unlock              = both passed AND overall_points > 70
+    """
+    q = """
+    SELECT q.two_category AS cat,
+           ROUND(AVG(r.score)*100.0, 1) AS acc_pct,
+           COUNT(*) AS n
+    FROM response r
+    JOIN quiz q     ON q.quiz_id = r.quiz_id
+    JOIN attempt a  ON a.attempt_id = r.attempt_id
+    WHERE r.student_id = ?
+      AND a.source = 'live'
+      AND q.two_category IN ('Data Modeling & DBMS Fundamentals','Normalization & Dependencies')
+    GROUP BY q.two_category
+    """
+    with get_db() as conn:
+        rows = conn.execute(q, (student_id,)).fetchall()
+
+    fund = {"acc_pct": 0.0, "attempts": 0}
+    norm = {"acc_pct": 0.0, "attempts": 0}
+    for r in rows:
+        acc = float(r["acc_pct"] or 0.0)
+        n   = int(r["n"] or 0)
+        if r["cat"] == "Data Modeling & DBMS Fundamentals":
+            fund = {"acc_pct": acc, "attempts": n}
+        elif r["cat"] == "Normalization & Dependencies":
+            norm = {"acc_pct": acc, "attempts": n}
+
+    fund_points = round((fund["acc_pct"] / 100.0) * 50.0, 1)
+    norm_points = round((norm["acc_pct"] / 100.0) * 50.0, 1)
+    overall_points = round(fund_points + norm_points, 1)
+
+    PASS = 17.5  # 35% of 50
+    unlocked_next = (fund_points >= PASS and norm_points >= PASS and overall_points > 70.0)
+
+    return {
+        "fund": fund, "norm": norm,
+        "fund_points": fund_points,
+        "norm_points": norm_points,
+        "overall_points": overall_points,
+        "pass_threshold": PASS,
+        "unlocked_next": unlocked_next,
+    }
+
+def compute_concept_stats(attempt_id: int) -> List[Dict[str, Any]]:
+    """Compute per-concept statistics for an attempt."""
+    db = get_db()
+    cur = db.execute(
+        """
+        SELECT q.concept_tag AS concept_tag,
+               COUNT(*) AS total,
+               SUM(r.score) AS correct,
+               AVG(r.response_time_s) AS avg_time
+        FROM response r
+        JOIN quiz q ON q.quiz_id = r.quiz_id
+        WHERE r.attempt_id = ?
+        GROUP BY q.concept_tag
+        """,
+        (attempt_id,),
+    )
+    return [dict(row) for row in cur.fetchall()]
+
+
+def next_step_concept(student_id: int) -> Optional[str]:
+    """Find the next concept the student should focus on."""
+    concept_order = [
+        "Functional Dependency",
+        "Atomic Values", 
+        "Partial Dependency",
+        "Transitive Dependency",
+    ]
+    
+    db = get_db()
+    for tag in concept_order:
+        cur = db.execute(
+            "SELECT mastered FROM student_mastery WHERE student_id=? AND concept_tag=?",
+            (student_id, tag),
+        )
+        row = cur.fetchone()
+        if not row or int(row["mastered"]) == 0:
+            return tag
+    return None
 
 
 # --- Routes ---
@@ -177,6 +288,15 @@ def logout():
 @login_required
 def quiz():
     return render_template("quiz.html")
+
+
+@app.route("/reattempt")
+@login_required
+def reattempt():
+    """Create a new attempt and redirect to quiz."""
+    student_id = int(session["student_id"])
+    attempt_id = _get_or_create_open_attempt(student_id)
+    return redirect(url_for("quiz"))
 
 
 def _get_or_create_open_attempt(student_id: int) -> int:
@@ -333,7 +453,7 @@ def submit():
         c_correct = int(row["correct"]) if row["correct"] is not None else 0
         c_avg_time = float(row["avg_time"]) if row["avg_time"] is not None else 0.0
         acc_pct = (c_correct / c_total * 100.0) if c_total else 0.0
-        mastered = 1 if (c_total >= 3 and acc_pct >= 80.0 and c_avg_time <= 20.0) else 0
+        mastered = 1 if acc_pct >= 80.0 else 0
 
         db.execute(
             """
@@ -370,6 +490,8 @@ def submit():
             "correct": correct,
             "score_pct": score_pct,
             "details": details,
+            "passed": score_pct >= 70.0,
+            "next_step": next_step_concept(student_id),
         }
     )
 
@@ -395,7 +517,7 @@ def student_dashboard(student_id: int):
 
     # Last attempt details
     cur = db.execute(
-        "SELECT attempt_id FROM attempt WHERE student_id=? AND items_total IS NOT NULL ORDER BY started_at DESC LIMIT 1",
+        "SELECT attempt_id, started_at, score_pct FROM attempt WHERE student_id=? AND items_total IS NOT NULL ORDER BY started_at DESC LIMIT 1",
         (current_student_id,),
     )
     last = cur.fetchone()
@@ -427,14 +549,13 @@ def student_dashboard(student_id: int):
                 }
             )
 
-    # Per-concept metrics (last attempt) plus mastery state
+    # Per-concept metrics (last attempt) plus mastery state - NO TIME DISPLAY
     per_concept: List[Dict[str, Any]] = []
     if last:
         cur = db.execute(
             """
             SELECT q.concept_tag AS concept_tag,
-                   100.0 * SUM(r.score) / COUNT(*) AS acc_pct,
-                   AVG(r.response_time_s) AS avg_time
+                   100.0 * SUM(r.score) / COUNT(*) AS acc_pct
             FROM response r
             JOIN quiz q ON q.quiz_id = r.quiz_id
             WHERE r.attempt_id = ?
@@ -446,7 +567,6 @@ def student_dashboard(student_id: int):
         for row in cur.fetchall():
             tag = row["concept_tag"]
             acc = float(row["acc_pct"]) if row["acc_pct"] is not None else 0.0
-            avg_t = float(row["avg_time"]) if row["avg_time"] is not None else 0.0
             mcur = db.execute(
                 "SELECT mastered FROM student_mastery WHERE student_id=? AND concept_tag=?",
                 (current_student_id, tag),
@@ -456,29 +576,30 @@ def student_dashboard(student_id: int):
                 {
                     "concept_tag": tag,
                     "acc_pct": acc,
-                    "avg_time": avg_t,
                     "mastered": int(mrow["mastered"]) if mrow else 0,
                 }
             )
 
-    # Next step: first not mastered in FD -> 1NF -> 2NF -> 3NF
-    concept_order = [
-        "Functional Dependency",
-        "Atomic Values",
-        "Partial Dependency",
-        "Transitive Dependency",
-    ]
-    next_step = None
-    for tag in concept_order:
+    # Next step concept
+    next_step = next_step_concept(current_student_id)
+    
+    # Get next step concept accuracy for gauge
+    next_step_accuracy = 0.0
+    if next_step and last:
         cur = db.execute(
-            "SELECT mastered FROM student_mastery WHERE student_id=? AND concept_tag=?",
-            (current_student_id, tag),
+            """
+            SELECT 100.0 * SUM(r.score) / COUNT(*) AS acc_pct
+            FROM response r
+            JOIN quiz q ON q.quiz_id = r.quiz_id
+            WHERE r.attempt_id = ? AND q.concept_tag = ?
+            """,
+            (last["attempt_id"], next_step),
         )
         row = cur.fetchone()
-        if not row or int(row["mastered"]) == 0:
-            next_step = tag
-            break
+        if row and row["acc_pct"] is not None:
+            next_step_accuracy = float(row["acc_pct"])
 
+    two_cat = get_two_category_mastery(current_student_id)
     return render_template(
         "student_dashboard.html",
         labels=labels,
@@ -486,10 +607,26 @@ def student_dashboard(student_id: int):
         last_details=last_details,
         per_concept=per_concept,
         next_step=next_step,
+        next_step_accuracy=next_step_accuracy,
+        last_attempt=last,
+        two_cat=two_cat,
     )
 
 
+@app.route("/modules")
+@login_required
+def modules():
+    """Show all available modules."""
+    db = get_db()
+    cur = db.execute(
+        "SELECT module_id, title, description, nf_level, concept_tag, resource_url FROM module ORDER BY module_id"
+    )
+    modules = cur.fetchall()
+    return render_template("modules.html", modules=modules)
+
+
 @app.route("/module/<int:module_id>")
+@login_required
 def module_page(module_id: int):
     db = get_db()
     cur = db.execute(
@@ -501,6 +638,66 @@ def module_page(module_id: int):
         flash("Module not found.")
         return redirect(url_for("index"))
     return render_template("module.html", module=module)
+
+
+@app.route("/module/fundamentals")
+@login_required
+def module_fundamentals():
+    return render_template("module_fundamentals.html")
+
+
+@app.route("/module/norm")
+@login_required
+def module_norm():
+    return render_template("module_norm.html")
+
+
+@app.route("/api/module_progress", methods=["POST"])
+@login_required
+def api_module_progress():
+    data = request.get_json(force=True) or {}
+    module_key = (data.get("module_key") or "").strip().lower()  # 'fundamentals' | 'norm'
+    score = int(data.get("score", 0))  # 0..3
+    if module_key not in {"fundamentals","norm"}:
+        return jsonify({"ok": False, "error": "invalid module_key"}), 400
+    if score < 0 or score > 3:
+        return jsonify({"ok": False, "error": "invalid score"}), 400
+    sid = int(session["student_id"])
+    with get_db() as db:
+        db.execute(
+            """
+          INSERT INTO module_progress (student_id, module_key, score)
+          VALUES (?,?,?)
+          ON CONFLICT(student_id, module_key) DO UPDATE SET
+            score=excluded.score,
+            completed_at=datetime('now')
+        """,
+            (sid, module_key, score),
+        )
+        db.commit()
+    return jsonify({"ok": True})
+
+
+@app.route("/thanks")
+@login_required
+def thanks_page():
+    return render_template("thanks.html")
+
+
+@app.route("/api/feedback", methods=["POST"])
+@login_required
+def api_feedback():
+    data = request.get_json(force=True) or {}
+    rating = int(data.get("rating", 0))
+    comment = (data.get("comment") or "").strip()
+    if rating < 1 or rating > 5:
+        return jsonify({"ok": False, "error": "Invalid rating"}), 400
+    sid = int(session.get("student_id"))
+    with get_db() as conn:
+        conn.execute("INSERT INTO feedback (student_id, rating, comment) VALUES (?,?,?)",
+                     (sid, rating, comment))
+        conn.commit()
+    return jsonify({"ok": True})
 
 
 if __name__ == "__main__":

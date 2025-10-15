@@ -1,54 +1,157 @@
 {% extends 'base.html' %}
 {% block title %}Dashboard{% endblock %}
 {% block content %}
-<h2>Student Dashboard</h2>
-<div class="grid">
-  <div>
-    <h3>Progress Over Time</h3>
+<div class="dashboard-header">
+  <h1>Student Dashboard</h1>
+  <p>Track your progress and master database normalization concepts.</p>
+</div>
+
+<div class="dashboard-grid">
+  <!-- Recent Score Card -->
+  <div class="dashboard-card score-card">
+    <h3>Recent Score</h3>
+    {% if last_attempt %}
+      <div class="score-display">
+        <span class="score-value">{{ '%.0f'|format(last_attempt.score_pct) if last_attempt and last_attempt.score_pct else 0 }}%</span>
+        <span class="score-date">{{ last_attempt.started_at[:10] if last_attempt and last_attempt.started_at else '' }}</span>
+      </div>
+      <a href="{{ url_for('reattempt') }}" class="btn btn-primary">Reattempt Quiz</a>
+    {% else %}
+      <div class="score-display">
+        <span class="score-value">--</span>
+        <span class="score-date">No attempts yet</span>
+      </div>
+      <a href="{{ url_for('quiz') }}" class="btn btn-primary">Take Quiz</a>
+    {% endif %}
+  </div>
+
+  <!-- Next Step Card -->
+  <div class="dashboard-card next-step-card">
+    <h3>Next Step</h3>
+    {% if next_step %}
+      <div class="next-step-content">
+        <h4>{{ next_step }}</h4>
+        <div class="progress-gauge">
+          <span class="gauge-value">{{ '%.0f'|format(next_step_accuracy) }}%</span>
+          <div class="gauge-bar">
+            <div class="gauge-fill" style="width: {{ next_step_accuracy }}%"></div>
+          </div>
+        </div>
+        <a href="{{ url_for('modules') }}" class="btn btn-secondary">Study Module</a>
+      </div>
+    {% else %}
+      <div class="next-step-content">
+        <p class="mastered-message">🎉 All concepts mastered! Great job!</p>
+        <a href="{{ url_for('quiz') }}" class="btn btn-secondary">Take Practice Quiz</a>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+<section class="card" style="padding:1rem; margin:1rem 0;">
+  <h3>Category Mastery</h3>
+  <p class="muted">Each concept is worth 50%. Pass when ≥ <strong>17.5/50</strong>. Unlock when total is <strong>&gt; 70/100</strong>.</p>
+
+  <p><strong>Fundamentals:</strong>
+    {{ two_cat.fund.acc_pct }}% accuracy → <strong>{{ two_cat.fund_points }}</strong>/50
+    ({{ two_cat.fund.attempts }} attempts)
+  </p>
+  <div style="background:#eee;height:8px;border-radius:4px;margin:.25rem 0 1rem;">
+    <div style="height:8px;border-radius:4px;background:#3b82f6;width:{{ (two_cat.fund_points/50)*100 }}%;"></div>
+  </div>
+
+  <p><strong>Normalization & Dependencies:</strong>
+    {{ two_cat.norm.acc_pct }}% accuracy → <strong>{{ two_cat.norm_points }}</strong>/50
+    ({{ two_cat.norm.attempts }} attempts)
+  </p>
+  <div style="background:#eee;height:8px;border-radius:4px;margin:.25rem 0 1rem;">
+    <div style="height:8px;border-radius:4px;background:#22c55e;width:{{ (two_cat.norm_points/50)*100 }}%;"></div>
+  </div>
+
+  <p><strong>Overall:</strong> {{ two_cat.overall_points }}/100</p>
+  <div style="background:#eee;height:10px;border-radius:5px;margin:.25rem 0;">
+    <div style="height:10px;border-radius:5px;background:#8b5cf6;width:{{ two_cat.overall_points }}%;"></div>
+  </div>
+
+  {% if two_cat.unlocked_next %}
+    <p style="margin-top:1rem;"><span>✅ Unlocked!</span></p>
+    <a class="btn" href="/thanks">Finish Prototype</a>
+  {% else %}
+    <p style="margin-top:1rem;opacity:.85;">🔒 Need ≥17.5/50 in both concepts and total &gt; 70/100.</p>
+  {% endif %}
+</section>
+
+<section class="card" style="padding:1rem;">
+  <h3>Learning Modules</h3>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:.75rem;">
+    <a class="btn" href="/module/fundamentals">Data Modeling & DBMS Fundamentals</a>
+    <a class="btn" href="/module/norm">Normalization & Dependencies</a>
+  </div>
+</section>
+
+<!-- Per-Concept Cards -->
+<div class="concepts-section">
+  <h2>Concept Mastery</h2>
+  <div class="concepts-grid">
+    {% for c in per_concept %}
+    <div class="concept-card">
+      <h4>{{ c.concept_tag }}</h4>
+      <div class="concept-metrics">
+        <div class="accuracy">
+          <span class="metric-label">Accuracy</span>
+          <span class="metric-value">{{ '%.0f'|format(c.acc_pct) }}%</span>
+        </div>
+        <div class="mastery">
+          {% if c.mastered %}
+            <span class="mastered-badge">✓ Mastered</span>
+          {% else %}
+            <span class="not-mastered-badge">Learning</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Progress Chart -->
+<div class="progress-section">
+  <h2>Progress Over Time</h2>
+  <div class="chart-container">
     <canvas id="scoreChart" width="400" height="200"></canvas>
   </div>
-  <div>
-    <h3>Next Step</h3>
-    <div class="card">
-      {% if next_step %}
-        <p>Focus next: <strong>{{ next_step }}</strong></p>
-      {% else %}
-        <p>All concepts mastered. Great job!</p>
-      {% endif %}
-    </div>
-  </div>
 </div>
 
-<h3>Per-Concept</h3>
-<div class="cards">
-  {% for c in per_concept %}
-  <div class="card">
-    <h4>{{ c.concept_tag }}</h4>
-    <p>Accuracy: {{ '%.0f'|format(c.acc_pct) }}%</p>
-    <p>Avg Time: {{ '%.1f'|format(c.avg_time) }}s</p>
-    <p>Mastered: {{ 'Yes' if c.mastered else 'No' }}</p>
+<!-- Last Attempt Summary -->
+{% if last_details %}
+<div class="attempt-summary">
+  <h2>Last Attempt Summary</h2>
+  <div class="summary-table">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Concept</th>
+          <th>Correct</th>
+          <th>Total</th>
+          <th>Accuracy</th>
+          <th>Mastered</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in per_concept %}
+        <tr>
+          <td>{{ c.concept_tag }}</td>
+          <td>{{ (c.acc_pct * 3 / 100)|round|int if 'FD' in c.concept_tag or '1NF' in c.concept_tag else (c.acc_pct * 2 / 100)|round|int }}</td>
+          <td>{{ 3 if 'FD' in c.concept_tag or '1NF' in c.concept_tag else 2 }}</td>
+          <td>{{ '%.0f'|format(c.acc_pct) }}%</td>
+          <td>{{ 'Yes' if c.mastered else 'No' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
-  {% endfor %}
 </div>
-
-<h3>Last Attempt Details</h3>
-<table class="table">
-  <thead>
-    <tr><th>#</th><th>Question</th><th>Your Answer</th><th>Correct</th><th>Time(s)</th><th>Category</th></tr>
-  </thead>
-  <tbody>
-    {% for d in last_details %}
-    <tr>
-      <td>{{ loop.index }}</td>
-      <td>{{ d.question }}</td>
-      <td>{{ d.answer }}</td>
-      <td>{{ '✔' if d.score == 1 else '✘' }}</td>
-      <td>{{ '%.1f'|format(d.response_time_s) }}</td>
-      <td>{{ d.time_category }}</td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+{% endif %}
 
 <script>
   const labels = {{ labels|tojson }};
@@ -56,8 +159,30 @@
   const ctx = document.getElementById('scoreChart').getContext('2d');
   new Chart(ctx, {
     type: 'line',
-    data: { labels, datasets: [{ label: 'Score %', data: scores, borderColor: '#1e88e5' }] },
-    options: { scales: { y: { beginAtZero: true, max: 100 } } }
+    data: { 
+      labels, 
+      datasets: [{ 
+        label: 'Score %', 
+        data: scores, 
+        borderColor: '#1e88e5',
+        backgroundColor: 'rgba(30, 136, 229, 0.1)',
+        fill: true
+      }] 
+    },
+    options: { 
+      responsive: true,
+      scales: { 
+        y: { 
+          beginAtZero: true, 
+          max: 100 
+        } 
+      },
+      plugins: {
+        legend: {
+          display: false
+        }
+      }
+    }
   });
 </script>
 {% endblock %}

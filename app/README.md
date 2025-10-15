@@ -1,58 +1,232 @@
-# Normalization Quiz (Flask + SQLite)
+# Database Normalization Quiz App
 
-A self-contained Flask web app for practicing database normalization concepts with login, quizzes, scoring, mastery tracking, and recommendations.
+A modern Flask web application for learning and practicing database normalization concepts. Features interactive quizzes, progress tracking, and personalized learning paths.
 
 ## Features
-- Auth (register/login/logout) with hashed passwords
-- Progressive quiz assembly (10 Q: 3 FD, 3 1NF, 2 2NF, 2 3NF)
-- Scoring and detailed feedback with time categories (Fast/Normal/Slow)
-- Mastery per concept and recommendations
-- Student dashboard with score chart and per-concept cards
-- Modules page for learning resources
 
-## Stack
-- Python 3.11, Flask, Jinja2
-- SQLite3 (no ORM), python-dotenv
-- Chart.js (CDN)
-- pytest
+### Student Experience
+- **Authentication**: Secure registration and login with password hashing
+- **Interactive Quizzes**: 10-question quizzes with proper NF distribution (3 FD, 3 1NF, 2 2NF, 2 3NF)
+- **Smart Results**: Immediate feedback with pass/fail logic and next steps
+- **Progress Dashboard**: Visual progress tracking with concept mastery cards
+- **Learning Modules**: Access to concept-specific learning resources
+- **Mastery Tracking**: Automatic mastery detection based on performance
+- **Recommendations**: Personalized suggestions for improvement
 
-## Setup & Run
+### Admin Features
+- **Excel Import**: Bulk import questions and student history from Excel files
+- **Database Management**: Safe migrations and schema updates
+
+## Technology Stack
+
+- **Backend**: Python 3.11, Flask, SQLite3 (no ORM)
+- **Frontend**: HTML5, CSS3, JavaScript (ES6), Chart.js
+- **Data Processing**: pandas, openpyxl for Excel import
+- **Testing**: pytest
+- **Security**: Werkzeug password hashing, CSRF protection
+
+## Quick Start
+
+### 1. Environment Setup
 
 ```bash
+# Create virtual environment
 python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
+
+# Activate virtual environment
+# Windows:
+.venv\Scripts\activate
+# macOS/Linux:
+source .venv/bin/activate
+
+# Install dependencies
 pip install -r requirements.txt
-cp .env.example .env
-python -c "import os,sqlite3; db=os.getenv('PLA_DB','pla.db'); con=sqlite3.connect(db); con.executescript(open('schema.sql').read()); con.executescript(open('seed.sql').read()); con.close()"
-python app.py
-# open http://localhost:5000
 ```
 
-Environment variables:
-- `FLASK_SECRET`: Flask secret key
-- `PLA_DB`: SQLite database file (default `pla.db`)
+### 2. Configuration
 
-## Endpoints
-- `GET /` Home
-- `GET/POST /register` Register
-- `GET/POST /login` Login
-- `GET /logout` Logout
-- `GET /quiz` Quiz page (protected)
-- `GET /api/quiz_progressive` Progressive quiz API (protected)
-- `POST /submit` Submit answers API (protected)
-- `GET /student/<student_id>` Student dashboard (protected)
-- `GET /module/<module_id>` Module details
+```bash
+# Copy environment template
+cp .env.example .env
 
-## Mastery & Recommendations
-- Mastery per concept (within an attempt) when: total ≥ 3 AND accuracy ≥ 80% AND avg_time ≤ 20s.
-- Recommendation when accuracy < 70% OR avg_time > 20s: "Review [tag] module."
+# Edit .env file with your settings
+# FLASK_SECRET=your-secret-key-here
+# PLA_DB=pla.db
+# DEBUG=True
+```
 
-## Notes
-- All protected routes use a `@login_required` decorator
-- Never trusts posted `student_id`; uses `session['student_id']`
-- SQLite FKs are enabled per-connection
-- CSRF token for HTML forms (session-based)
+### 3. Database Setup
 
-## Screenshots
-- Dashboard chart and cards (placeholder)
-- Quiz flow (placeholder)
+```bash
+# Initialize database with schema and seed data
+python -c "
+import os
+import sqlite3
+db_path = os.getenv('PLA_DB', 'pla.db')
+conn = sqlite3.connect(db_path)
+conn.executescript(open('schema.sql').read())
+conn.executescript(open('seed.sql').read())
+conn.close()
+print('Database initialized successfully')
+"
+```
+
+### 4. Excel Data Import (Optional)
+
+```bash
+# Import questions from Excel
+python import_excel.py --db pla.db --questions questions.xlsx
+
+# Import student history from Excel
+python import_excel.py --db pla.db --history history.xlsx
+
+# Import both
+python import_excel.py --db pla.db --questions questions.xlsx --history history.xlsx
+```
+
+### 5. Run Application
+
+```bash
+# Start the development server
+python app.py
+
+# Open browser to http://localhost:5000
+```
+
+### 6. Run Tests
+
+```bash
+# Run all tests
+pytest -q
+
+# Run specific test file
+pytest tests/test_auth_guard.py -v
+```
+
+## Excel Import Format
+
+### Questions File (`questions.xlsx`)
+Sheet name: `questions`
+
+| Column | Description | Example |
+|--------|-------------|---------|
+| question | The quiz question text | "In relation Orders(OrderID, CustomerID), which FD holds?" |
+| option_a | First answer option | "OrderID -> CustomerID, OrderDate" |
+| option_b | Second answer option | "CustomerID -> OrderID" |
+| option_c | Third answer option | "OrderDate -> OrderID" |
+| option_d | Fourth answer option | "CustomerID, OrderDate -> OrderID" |
+| correct_answer | The correct answer (exact text) | "OrderID -> CustomerID, OrderDate" |
+| nf_level | Normal form level | "FD", "1NF", "2NF", "3NF" |
+| concept_tag | Concept category | "Functional Dependency", "Atomic Values", etc. |
+| explanation | Explanation text | "Primary key determines other attributes." |
+
+**Requirements**: 30 questions total with at least 12 FD, 12 1NF, 3 2NF, 3 3NF questions.
+
+### History File (`history.xlsx`)
+
+#### Attempts Sheet
+| Column | Description |
+|--------|-------------|
+| external_student_email | Student email address |
+| started_at | Attempt start time (ISO format) |
+| finished_at | Attempt end time (ISO format) |
+
+#### Responses Sheet
+| Column | Description |
+|--------|-------------|
+| external_student_email | Student email address |
+| started_at | Matching attempt start time |
+| quiz_question | Question text (must match quiz table) |
+| answer | Student's answer |
+| response_time_s | Response time in seconds |
+
+## API Endpoints
+
+### Public Routes
+- `GET /` - Home page
+- `GET/POST /register` - User registration
+- `GET/POST /login` - User login
+- `GET /logout` - User logout
+
+### Protected Routes (require login)
+- `GET /quiz` - Quiz interface
+- `GET /api/quiz_progressive` - Get quiz questions
+- `POST /submit` - Submit quiz answers
+- `GET /student/<student_id>` - Student dashboard
+- `GET /modules` - Learning modules
+- `GET /module/<module_id>` - Individual module
+- `GET /reattempt` - Create new attempt and start quiz
+
+## Database Schema
+
+### Core Tables
+- **student**: User accounts with authentication
+- **quiz**: Question bank with options and explanations
+- **attempt**: Quiz attempts with scoring
+- **response**: Individual question responses with timing
+- **student_mastery**: Per-concept mastery tracking
+- **module**: Learning modules and resources
+- **recommendation**: Personalized learning suggestions
+
+### Key Features
+- Foreign key constraints enabled
+- Automatic mastery calculation (≥3 attempts, ≥80% accuracy, ≤20s avg time)
+- Recommendation generation for struggling concepts
+- Time categorization (Fast <10s, Normal 10-20s, Slow >20s)
+
+## Development
+
+### Running Migrations
+```bash
+# Apply database migrations
+python migrations.py
+```
+
+### Testing
+```bash
+# Run all tests
+pytest
+
+# Run with coverage
+pytest --cov=app
+
+# Run specific test categories
+pytest tests/test_auth_guard.py
+pytest tests/test_quiz_flow.py
+pytest tests/test_dashboard_views.py
+pytest tests/test_nav_layout.py
+pytest tests/test_import_excel.py
+```
+
+### Code Quality
+- Type hints throughout
+- Comprehensive error handling
+- Security best practices (CSRF, password hashing)
+- Responsive design
+- Accessible UI components
+
+## Deployment
+
+### Production Setup
+1. Set `DEBUG=False` in environment
+2. Use a strong `FLASK_SECRET` key
+3. Configure proper database path
+4. Set up reverse proxy (nginx/Apache)
+5. Use WSGI server (gunicorn/uWSGI)
+
+### Environment Variables
+- `FLASK_SECRET`: Flask secret key for sessions
+- `PLA_DB`: SQLite database file path
+- `DEBUG`: Enable/disable debug mode
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Write tests for new functionality
+4. Ensure all tests pass
+5. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License.
