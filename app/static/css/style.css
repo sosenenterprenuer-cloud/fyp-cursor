@@ -305,6 +305,101 @@ main.container {
   font-weight: 600;
 }
 
+.mastery-overview-card {
+  margin: 1.5rem 0;
+  padding: 2rem;
+}
+
+.mastery-grid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  margin-top: 1.5rem;
+}
+
+.mastery-track {
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 18px;
+  padding: 1.5rem;
+  box-shadow: var(--shadow-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.mastery-step {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.step-label {
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  font-weight: 600;
+}
+
+.step-value {
+  margin: 0;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.progress-track {
+  width: 100%;
+  height: 10px;
+  background: #e5e7eb;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-primary), #7c3aed);
+  transition: width 0.3s ease;
+}
+
+.status-success .step-value {
+  color: var(--color-accent);
+}
+
+.status-pending .step-value {
+  color: var(--color-amber);
+}
+
+.inline-link {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.inline-link:hover,
+.inline-link:focus {
+  text-decoration: underline;
+}
+
+.overall-status {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.next-step-card .success {
+  background: rgba(34, 197, 94, 0.12);
+  border-radius: 18px;
+  padding: 1.25rem;
+}
+
+.next-step-card .success h4 {
+  color: var(--color-accent);
+}
+
+.recommendation-step .inline-link {
+  font-size: 0.9rem;
+}
+
 /* Concepts */
 .concepts-section h2,
 .progress-section h2,

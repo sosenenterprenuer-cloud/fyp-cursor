@@ -27,58 +27,80 @@
 
   <!-- Next Step Card -->
   <div class="dashboard-card next-step-card">
-    <h3>Next Step</h3>
-    {% if next_step %}
+    <h3>Next Recommendation</h3>
+    {% if two_cat.unlocked_next %}
+      <div class="next-step-content success">
+        <h4>Recommendation Unlocked</h4>
+        <p>Perfect 50/50 in both concepts! You're ready for the advanced recommendation.</p>
+        <a href="{{ url_for('modules') }}" class="btn btn-secondary">Explore Modules</a>
+      </div>
+    {% elif next_step %}
       <div class="next-step-content">
-        <h4>{{ next_step }}</h4>
+        <h4>Focus on {{ next_step }}</h4>
+        <p>Score 50/50 here to unlock the next recommendation.</p>
         <div class="progress-gauge">
           <span class="gauge-value">{{ '%.0f'|format(next_step_accuracy) }}%</span>
           <div class="gauge-bar">
             <div class="gauge-fill" style="width: {{ next_step_accuracy }}%"></div>
           </div>
         </div>
-        <a href="{{ url_for('modules') }}" class="btn btn-secondary">Study Module</a>
+        {% if focus_module_url %}
+          <a href="{{ focus_module_url }}" class="btn btn-secondary">Review Module</a>
+        {% else %}
+          <a href="{{ url_for('modules') }}" class="btn btn-secondary">Review Modules</a>
+        {% endif %}
       </div>
     {% else %}
       <div class="next-step-content">
-        <p class="mastered-message">🎉 All concepts mastered! Great job!</p>
-        <a href="{{ url_for('quiz') }}" class="btn btn-secondary">Take Practice Quiz</a>
+        <p class="mastered-message">Take your first quiz attempt to see personalized recommendations.</p>
+        <a href="{{ url_for('quiz') }}" class="btn btn-secondary">Start Quiz</a>
       </div>
     {% endif %}
   </div>
 </div>
 
-<section class="card" style="padding:1rem; margin:1rem 0;">
-  <h3>Category Mastery</h3>
-  <p class="muted">Each concept is worth 50 points. You must get 50/50 in both concepts (100/100 total) to unlock the next topic.</p>
+<section class="card mastery-overview-card">
+  <h3>Concept Path to Mastery</h3>
+  <p class="muted">Each concept is worth 50 points. Score full marks in both to unlock the next recommendation.</p>
 
-  <p><strong>Fundamentals:</strong>
-    {{ two_cat.fund.acc_pct }}% accuracy → <strong>{{ two_cat.fund_points }}</strong>/50
-    ({{ two_cat.fund.attempts }} attempts)
-  </p>
-  <div style="background:#eee;height:8px;border-radius:4px;margin:.25rem 0 1rem;">
-    <div style="height:8px;border-radius:4px;background:#3b82f6;width:{{ (two_cat.fund_points/50)*100 }}%;"></div>
+  <div class="mastery-grid">
+    {% for step in mastery_steps %}
+      <div class="mastery-track">
+        <div class="mastery-step">
+          <span class="step-label">Attempt</span>
+          <p class="step-value">{{ step.attempts }} {{ 'attempt' if step.attempts == 1 else 'attempts' }}</p>
+        </div>
+        <div class="mastery-step">
+          <span class="step-label">Score Full Marks</span>
+          <div class="progress-track">
+            <div class="progress-fill" style="width: {{ step.points_pct }}%"></div>
+          </div>
+          <p class="step-value">{{ '%.1f'|format(step.points) }}/50 pts · {{ '%.1f'|format(step.accuracy) }}% accuracy</p>
+        </div>
+        <div class="mastery-step {{ 'status-success' if step.full_marks else 'status-pending' }}">
+          <span class="step-label">Excelled Mastery</span>
+          <p class="step-value">{{ step.mastery_text }}</p>
+        </div>
+        <div class="mastery-step recommendation-step">
+          <span class="step-label">Recommendation</span>
+          <p class="step-value">{{ step.recommendation }}</p>
+          {% if not step.full_marks %}
+            <a class="inline-link" href="{{ step.module_url }}">Review module</a>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
   </div>
 
-  <p><strong>Normalization & Dependencies:</strong>
-    {{ two_cat.norm.acc_pct }}% accuracy → <strong>{{ two_cat.norm_points }}</strong>/50
-    ({{ two_cat.norm.attempts }} attempts)
-  </p>
-  <div style="background:#eee;height:8px;border-radius:4px;margin:.25rem 0 1rem;">
-    <div style="height:8px;border-radius:4px;background:#22c55e;width:{{ (two_cat.norm_points/50)*100 }}%;"></div>
+  <div class="overall-status">
+    <p><strong>Overall Progress:</strong> {{ two_cat.overall_points }}/100 points</p>
+    {% if two_cat.unlocked_next %}
+      <p class="muted">✅ Recommendation unlocked – continue to the next topic.</p>
+      <a class="btn" href="/thanks">Finish Prototype</a>
+    {% else %}
+      <p class="muted">🔒 Earn 50/50 in both concepts (100/100 total) to unlock the recommendation.</p>
+    {% endif %}
   </div>
-
-  <p><strong>Overall:</strong> {{ two_cat.overall_points }}/100</p>
-  <div style="background:#eee;height:10px;border-radius:5px;margin:.25rem 0;">
-    <div style="height:10px;border-radius:5px;background:#8b5cf6;width:{{ two_cat.overall_points }}%;"></div>
-  </div>
-
-  {% if two_cat.unlocked_next %}
-    <p style="margin-top:1rem;"><span>✅ Unlocked!</span></p>
-    <a class="btn" href="/thanks">Finish Prototype</a>
-  {% else %}
-    <p style="margin-top:1rem;opacity:.85;">🔒 Earn a perfect <strong>50/50</strong> in both concepts (100/100 total) to unlock the next topic.</p>
-  {% endif %}
 </section>
 
 <section class="card" style="padding:1rem;">

@@ -352,23 +352,12 @@ def compute_concept_stats(attempt_id: int) -> List[Dict[str, Any]]:
 
 
 def next_step_concept(student_id: int) -> Optional[str]:
-    """Find the next concept the student should focus on."""
-    concept_order = [
-        "Functional Dependency",
-        "Atomic Values", 
-        "Partial Dependency",
-        "Transitive Dependency",
-    ]
-    
-    db = get_db()
-    for tag in concept_order:
-        cur = db.execute(
-            "SELECT mastered FROM student_mastery WHERE student_id=? AND concept_tag=?",
-            (student_id, tag),
-        )
-        row = cur.fetchone()
-        if not row or int(row["mastered"]) == 0:
-            return tag
+    """Determine which concept still needs a perfect score."""
+    mastery = get_two_category_mastery(student_id)
+    if mastery.get("fund_points", 0.0) < 50.0:
+        return "Data Modeling & DBMS Fundamentals"
+    if mastery.get("norm_points", 0.0) < 50.0:
+        return "Normalization & Dependencies"
     return None
 
 
@@ -506,12 +495,13 @@ def _get_or_create_open_attempt(student_id: int) -> int:
     return int(cur.fetchone()["attempt_id"])  # type: ignore[index]
 
 
-def _select_questions_payload(total: int = 10, per_category: int = 5) -> List[Dict[str, Any]]:
+def _select_questions_payload(total: int = 30) -> List[Dict[str, Any]]:
     db = get_db()
     categories = [
         "Data Modeling & DBMS Fundamentals",
         "Normalization & Dependencies",
     ]
+    per_category = max(1, total // max(len(categories), 1))
     questions: List[Dict[str, Any]] = []
     seen: set[int] = set()
 
@@ -834,26 +824,54 @@ def student_dashboard(student_id: int):
                 }
             )
 
-    # Next step concept
-    next_step = next_step_concept(current_student_id)
-    
-    # Get next step concept accuracy for gauge
-    next_step_accuracy = 0.0
-    if next_step and last:
-        cur = db.execute(
-            """
-            SELECT 100.0 * SUM(r.score) / COUNT(*) AS acc_pct
-            FROM response r
-            JOIN quiz q ON q.quiz_id = r.quiz_id
-            WHERE r.attempt_id = ? AND q.concept_tag = ?
-            """,
-            (last["attempt_id"], next_step),
-        )
-        row = cur.fetchone()
-        if row and row["acc_pct"] is not None:
-            next_step_accuracy = float(row["acc_pct"])
-
     two_cat = get_two_category_mastery(current_student_id)
+    mastery_steps: List[Dict[str, Any]] = []
+    concept_meta = [
+        ("fund", "Data Modeling & DBMS Fundamentals", "fund_points", "/module/fundamentals"),
+        ("norm", "Normalization & Dependencies", "norm_points", "/module/norm"),
+    ]
+    for key, label, points_key, module_url in concept_meta:
+        metrics = two_cat.get(key, {}) if isinstance(two_cat, dict) else {}
+        accuracy = float(metrics.get("acc_pct", 0.0)) if isinstance(metrics, dict) else 0.0
+        attempts_ct = int(metrics.get("attempts", 0)) if isinstance(metrics, dict) else 0
+        points = float(two_cat.get(points_key, 0.0)) if isinstance(two_cat, dict) else 0.0
+        pct = max(0.0, min((points / 50.0) * 100.0, 100.0))
+        full_marks = points >= 50.0
+        mastery_steps.append(
+            {
+                "key": key,
+                "name": label,
+                "attempts": attempts_ct,
+                "accuracy": accuracy,
+                "points": points,
+                "points_pct": pct,
+                "full_marks": full_marks,
+                "mastery_text": "Excelled mastery achieved!" if full_marks else "Still aiming for full marks.",
+                "recommendation": (
+                    "Perfect score unlocked the next recommendation."
+                    if full_marks
+                    else f"Review the {label} module and retake the quiz until you score 50/50."
+                ),
+                "module_url": module_url,
+            }
+        )
+
+    next_step = next_step_concept(current_student_id)
+    next_step_accuracy = 0.0
+    focus_module_url: Optional[str] = None
+    if next_step == "Data Modeling & DBMS Fundamentals":
+        focus_module_url = "/module/fundamentals"
+        next_step_accuracy = next(
+            (step["accuracy"] for step in mastery_steps if step["key"] == "fund"), 0.0
+        )
+    elif next_step == "Normalization & Dependencies":
+        focus_module_url = "/module/norm"
+        next_step_accuracy = next(
+            (step["accuracy"] for step in mastery_steps if step["key"] == "norm"), 0.0
+        )
+    else:
+        next_step_accuracy = 100.0 if two_cat.get("overall_points", 0.0) >= 100.0 else 0.0
+
     return render_template(
         "student_dashboard.html",
         labels=labels,
@@ -864,6 +882,8 @@ def student_dashboard(student_id: int):
         next_step_accuracy=next_step_accuracy,
         last_attempt=last,
         two_cat=two_cat,
+        mastery_steps=mastery_steps,
+        focus_module_url=focus_module_url,
     )
 
 
