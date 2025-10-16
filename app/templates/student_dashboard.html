@@ -111,31 +111,6 @@
   </div>
 </section>
 
-<!-- Per-Concept Cards -->
-<div class="concepts-section">
-  <h2>Concept Mastery</h2>
-  <div class="concepts-grid">
-    {% for c in per_concept %}
-    <div class="concept-card">
-      <h4>{{ c.concept_tag }}</h4>
-      <div class="concept-metrics">
-        <div class="accuracy">
-          <span class="metric-label">Accuracy</span>
-          <span class="metric-value">{{ '%.0f'|format(c.acc_pct) }}%</span>
-        </div>
-        <div class="mastery">
-          {% if c.mastered %}
-            <span class="mastered-badge">✓ Mastered</span>
-          {% else %}
-            <span class="not-mastered-badge">Learning</span>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-    {% endfor %}
-  </div>
-</div>
-
 <!-- Progress Chart -->
 <div class="progress-section">
   <h2>Progress Over Time</h2>
@@ -143,37 +118,6 @@
     <canvas id="scoreChart" width="400" height="200"></canvas>
   </div>
 </div>
-
-<!-- Last Attempt Summary -->
-{% if last_details %}
-<div class="attempt-summary">
-  <h2>Last Attempt Summary</h2>
-  <div class="summary-table">
-    <table class="table">
-      <thead>
-        <tr>
-          <th>Concept</th>
-          <th>Correct</th>
-          <th>Total</th>
-          <th>Accuracy</th>
-          <th>Mastered</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for c in per_concept %}
-        <tr>
-          <td>{{ c.concept_tag }}</td>
-          <td>{{ c.correct }}</td>
-          <td>{{ c.total }}</td>
-          <td>{{ '%.0f'|format(c.acc_pct) }}%</td>
-          <td>{{ 'Yes' if c.mastered else 'No' }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-{% endif %}
 
 <script>
   const labels = {{ labels|tojson }};

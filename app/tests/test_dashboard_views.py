@@ -12,7 +12,7 @@ def test_student_dashboard_renders_200(logged_in_client):
     assert 'Student Dashboard' in html
     assert 'Recent Score' in html
     assert 'Next Step' in html
-    assert 'Concept Mastery' in html
+    assert 'Concept Path to Mastery' in html
 
 
 def test_dashboard_shows_reattempt_button(logged_in_client):
@@ -39,15 +39,17 @@ def test_dashboard_no_time_display(logged_in_client):
     assert 'Time(s)' not in html  # Should not show time column headers
 
 
-def test_dashboard_shows_per_concept_accuracy_and_mastered(logged_in_client):
-    """Test that dashboard shows per-concept accuracy and mastered status."""
+def test_dashboard_highlights_mastery_pipeline(logged_in_client):
+    """Test that dashboard highlights the mastery pipeline steps."""
     response = logged_in_client.get('/student/1')
     assert response.status_code == 200
-    
+
     html = response.get_data(as_text=True)
-    # Should contain concept-related elements
-    assert 'Accuracy' in html
-    assert 'Mastered' in html or 'Learning' in html
+    # Should contain mastery pipeline labels
+    assert 'Attempt' in html
+    assert 'Score Full Marks' in html
+    assert 'Excelled Mastery' in html
+    assert 'Recommendation' in html
 
 
 def test_next_step_shows_first_not_mastered_concept(logged_in_client):
@@ -57,13 +59,14 @@ def test_next_step_shows_first_not_mastered_concept(logged_in_client):
     
     html = response.get_data(as_text=True)
     # Should contain next step concept or mastered message
-    assert 'Next Step' in html
-    # Should either show a concept name or mastered message
-    assert ('Functional Dependency' in html or 
-            'Atomic Values' in html or 
-            'Partial Dependency' in html or 
-            'Transitive Dependency' in html or
-            'mastered' in html.lower())
+    assert 'Next Recommendation' in html
+    # Should show one of the two concept names or a mastery status message
+    assert (
+        'Data Modeling &amp; DBMS Fundamentals' in html
+        or 'Normalization &amp; Dependencies' in html
+        or 'Recommendation Unlocked' in html
+        or 'Focus on' in html
+    )
 
 
 def test_next_step_links_to_modules(logged_in_client):
@@ -74,7 +77,7 @@ def test_next_step_links_to_modules(logged_in_client):
     html = response.get_data(as_text=True)
     # Should contain link to modules
     assert '/modules' in html
-    assert 'Study Module' in html
+    assert ('Review Module' in html or 'Review Modules' in html)
 
 
 def test_dashboard_access_restricted_to_own_student_id(logged_in_client):
@@ -99,4 +102,4 @@ def test_modules_page_renders(logged_in_client):
     
     html = response.get_data(as_text=True)
     assert 'Learning Modules' in html
-    assert 'Study Module' in html
+    assert 'Start Learning' in html
