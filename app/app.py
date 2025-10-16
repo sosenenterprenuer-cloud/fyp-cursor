@@ -29,36 +29,63 @@ app.secret_key = os.environ.get("FLASK_SECRET", "dev-secret")
 app.config["JSON_SORT_KEYS"] = False
 
 
-# --- Database helpers ---
+# --- Database helpers (hardened for Windows & first-run) ---
 
 def get_db() -> sqlite3.Connection:
     if "db" not in g:
-        db_path = os.environ.get("PLA_DB", "pla.db")
-        conn = sqlite3.connect(db_path)
+        # 1) Resolve DB path safely
+        raw = os.environ.get("PLA_DB", "pla.db")
+        raw = raw.strip().strip('"').strip("'")           # strip stray quotes
+        base_dir = os.path.dirname(__file__)
+        db_path = raw if os.path.isabs(raw) else os.path.join(base_dir, raw)
+        os.makedirs(os.path.dirname(db_path) or base_dir, exist_ok=True)
+
+        # 2) Connect (row dicts + FK on)
+        conn = sqlite3.connect(db_path, detect_types=sqlite3.PARSE_DECLTYPES)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA foreign_keys=ON")
-        # Ensure database schema and seed data exist on first run
-        try:
-            cur = conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name='module'"
-            )
-            has_module_table = cur.fetchone() is not None
-        except Exception:
-            has_module_table = False
 
-        if not has_module_table:
-            base_dir = os.path.dirname(__file__)
-            schema_path = os.path.join(base_dir, "schema.sql")
-            seed_path = os.path.join(base_dir, "seed.sql")
+        # 3) Initialize schema only on true first run (no user tables yet)
+        def table_exists(name: str) -> bool:
             try:
-                with open(schema_path, "r", encoding="utf-8") as f:
-                    conn.executescript(f.read())
-                with open(seed_path, "r", encoding="utf-8") as f:
-                    conn.executescript(f.read())
+                cur = conn.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (name,)
+                )
+                return cur.fetchone() is not None
+            except Exception:
+                return False
+
+        has_any_core = table_exists("student") or table_exists("quiz") or table_exists("attempt")
+
+        if not has_any_core:
+            schema_path = os.path.join(base_dir, "schema.sql")
+            seed_path   = os.path.join(base_dir, "seed.sql")
+            try:
+                if os.path.exists(schema_path):
+                    with open(schema_path, "r", encoding="utf-8") as f:
+                        conn.executescript(f.read())
+                if os.path.exists(seed_path):
+                    with open(seed_path, "r", encoding="utf-8") as f:
+                        conn.executescript(f.read())
                 conn.commit()
-            except FileNotFoundError:
-                # If SQL files are missing, leave DB uninitialized but don't crash
-                pass
+            except Exception as e:
+                # Don't crash the app; log to console so you can see it
+                print("[DB INIT] Failed to apply schema/seed:", repr(e))
+
+        # 4) Post-init safety: ensure new columns exist (non-destructive)
+        #    This prevents crashes on older DBs.
+        def ensure_column(table: str, col: str, ddl: str) -> None:
+            try:
+                cols = [r[1] for r in conn.execute(f"PRAGMA table_info({table})")]
+                if col not in cols:
+                    conn.execute(ddl)
+                    conn.commit()
+            except Exception as e:
+                print(f"[DB MIGRATE] {table}.{col}:", repr(e))
+
+        ensure_column("attempt", "source", "ALTER TABLE attempt ADD COLUMN source TEXT")
+        ensure_column("quiz",    "two_category", "ALTER TABLE quiz ADD COLUMN two_category TEXT")
+
         g.db = conn
     return g.db  # type: ignore[return-value]
 
