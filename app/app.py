@@ -87,6 +87,44 @@ def get_db() -> sqlite3.Connection:
         ensure_column("quiz",    "two_category", "ALTER TABLE quiz ADD COLUMN two_category TEXT")
 
         g.db = conn
+
+        stabilize_connection = None
+        try:
+            from scripts.stabilize_db_and_app import stabilize_connection as _stabilize
+
+            stabilize_connection = _stabilize
+        except ModuleNotFoundError:
+            try:
+                import importlib.util
+                from pathlib import Path
+
+                stabilizer_path = Path(__file__).resolve().parent.parent / "scripts" / "stabilize_db_and_app.py"
+                spec = importlib.util.spec_from_file_location("pla_stabilizer", stabilizer_path)
+                if spec and spec.loader:
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)  # type: ignore[arg-type]
+                    stabilize_connection = getattr(module, "stabilize_connection", None)
+            except Exception as e:
+                print("[DB STABILIZE] loader failed:", repr(e))
+        except Exception as e:
+            print("[DB STABILIZE] import failed:", repr(e))
+
+        if stabilize_connection:
+            try:
+                stabilize_connection(conn)
+            except Exception as e:
+                print("[DB STABILIZE] Failed:", repr(e))
+
+        try:
+            cnt = conn.execute("SELECT COUNT(*) FROM quiz").fetchone()[0]
+            if cnt < 30:
+                try:
+                    seed_import_questions(conn=conn)
+                except Exception as e:
+                    print("[SEED] import_questions failed:", repr(e))
+        except Exception as e:
+            print("[SEED] count failed:", repr(e))
+
     return g.db  # type: ignore[return-value]
 
 
@@ -95,6 +133,102 @@ def close_db(_: Any) -> None:
     db = g.pop("db", None)
     if db is not None:
         db.close()
+
+
+def seed_import_questions(csv_path: str = "data/quiz_30.csv", conn: Optional[sqlite3.Connection] = None) -> None:
+    import csv
+    import json
+    import os
+
+    EXPECTED_HEADERS = [
+        "q_no",
+        "question",
+        "options_text",
+        "correct_answer",
+        "nf_level",
+        "concept_tag",
+        "explanation",
+        "two_category",
+    ]
+    ALLOWED = {
+        "Data Modeling & DBMS Fundamentals",
+        "Normalization & Dependencies",
+    }
+
+    if not os.path.exists(csv_path):
+        return
+
+    def _seed(connection: sqlite3.Connection) -> None:
+        try:
+            current = connection.execute("SELECT COUNT(*) FROM quiz").fetchone()[0]
+        except Exception:
+            return
+        if current >= 30:
+            return
+
+        existing = {
+            row["question"]
+            for row in connection.execute("SELECT question FROM quiz")
+        }
+
+        inserted = 0
+        try:
+            with open(csv_path, newline="", encoding="utf-8-sig") as handle:
+                reader = csv.DictReader(handle)
+                if reader.fieldnames != EXPECTED_HEADERS:
+                    return
+                for raw in reader:
+                    question = (raw.get("question") or "").strip()
+                    if not question or question in existing:
+                        continue
+                    two_category = (raw.get("two_category") or "").strip()
+                    if two_category not in ALLOWED:
+                        continue
+                    options_raw = raw.get("options_text", "")
+                    try:
+                        options = json.loads(options_raw)
+                    except Exception:
+                        continue
+                    if not isinstance(options, list) or len(options) != 4:
+                        continue
+                    options = [str(opt) for opt in options]
+                    correct = str(raw.get("correct_answer", ""))
+                    if correct not in options:
+                        continue
+
+                    connection.execute(
+                        """
+                        INSERT INTO quiz (question, options_text, correct_answer, nf_level, concept_tag, explanation, two_category)
+                        VALUES (?,?,?,?,?,?,?)
+                        """,
+                        (
+                            question,
+                            json.dumps(options, ensure_ascii=False),
+                            correct,
+                            raw.get("nf_level", ""),
+                            raw.get("concept_tag", ""),
+                            raw.get("explanation", ""),
+                            two_category,
+                        ),
+                    )
+                    existing.add(question)
+                    inserted += 1
+                    current += 1
+                    if current >= 30:
+                        break
+        finally:
+            if inserted:
+                connection.commit()
+
+    if conn is not None:
+        _seed(conn)
+    else:
+        db = get_db()
+        try:
+            _seed(db)
+        finally:
+            # ensure pending inserts are saved
+            db.commit()
 
 
 # --- Security / Auth ---
@@ -144,51 +278,56 @@ def categorize_time(seconds: float) -> str:
 
 
 def get_two_category_mastery(student_id: int):
-    """
-    Returns mastery for the two concepts using live attempts only.
-
-    points per concept = accuracy% * 0.5  (so 100% accuracy == 50 pts)
-    pass per concept    = points >= 17.5  (35% of 50)
-    unlock              = both passed AND overall_points > 70
-    """
-    q = """
-    SELECT q.two_category AS cat,
-           ROUND(AVG(r.score)*100.0, 1) AS acc_pct,
-           COUNT(*) AS n
-    FROM response r
-    JOIN quiz q     ON q.quiz_id = r.quiz_id
-    JOIN attempt a  ON a.attempt_id = r.attempt_id
-    WHERE r.student_id = ?
-      AND a.source = 'live'
-      AND q.two_category IN ('Data Modeling & DBMS Fundamentals','Normalization & Dependencies')
-    GROUP BY q.two_category
-    """
     with get_db() as conn:
+        quiz_cols = [r[1] for r in conn.execute("PRAGMA table_info(quiz)")]
+        attempt_cols = [r[1] for r in conn.execute("PRAGMA table_info(attempt)")]
+        if "two_category" not in quiz_cols:
+            return {
+                "fund": {"acc_pct": 0, "attempts": 0},
+                "norm": {"acc_pct": 0, "attempts": 0},
+                "fund_points": 0,
+                "norm_points": 0,
+                "overall_points": 0,
+                "unlocked_next": False,
+            }
+        source_guard = "IFNULL(a.source,'live')" if "source" in attempt_cols else "'live'"
+        q = f"""
+        SELECT q.two_category AS cat,
+               ROUND(AVG(r.score)*100.0, 1) AS acc_pct,
+               COUNT(*) AS n
+        FROM response r
+        JOIN quiz q     ON q.quiz_id = r.quiz_id
+        JOIN attempt a  ON a.attempt_id = r.attempt_id
+        WHERE r.student_id = ?
+          AND {source_guard} = 'live'
+          AND q.two_category IN ('Data Modeling & DBMS Fundamentals','Normalization & Dependencies')
+        GROUP BY q.two_category
+        """
         rows = conn.execute(q, (student_id,)).fetchall()
 
     fund = {"acc_pct": 0.0, "attempts": 0}
     norm = {"acc_pct": 0.0, "attempts": 0}
     for r in rows:
-        acc = float(r["acc_pct"] or 0.0)
-        n   = int(r["n"] or 0)
+        d = {"acc_pct": float(r["acc_pct"] or 0.0), "attempts": int(r["n"] or 0)}
         if r["cat"] == "Data Modeling & DBMS Fundamentals":
-            fund = {"acc_pct": acc, "attempts": n}
+            fund = d
         elif r["cat"] == "Normalization & Dependencies":
-            norm = {"acc_pct": acc, "attempts": n}
+            norm = d
 
     fund_points = round((fund["acc_pct"] / 100.0) * 50.0, 1)
     norm_points = round((norm["acc_pct"] / 100.0) * 50.0, 1)
     overall_points = round(fund_points + norm_points, 1)
 
-    PASS = 17.5  # 35% of 50
-    unlocked_next = (fund_points >= PASS and norm_points >= PASS and overall_points > 70.0)
+    unlocked_next = (
+        fund_points >= 50.0 and norm_points >= 50.0 and overall_points >= 100.0
+    )
 
     return {
-        "fund": fund, "norm": norm,
+        "fund": fund,
+        "norm": norm,
         "fund_points": fund_points,
         "norm_points": norm_points,
         "overall_points": overall_points,
-        "pass_threshold": PASS,
         "unlocked_next": unlocked_next,
     }
 
@@ -582,7 +721,9 @@ def student_dashboard(student_id: int):
         cur = db.execute(
             """
             SELECT q.concept_tag AS concept_tag,
-                   100.0 * SUM(r.score) / COUNT(*) AS acc_pct
+                   SUM(COALESCE(r.score, 0)) AS correct,
+                   COUNT(*) AS total,
+                   100.0 * SUM(COALESCE(r.score, 0)) / COUNT(*) AS acc_pct
             FROM response r
             JOIN quiz q ON q.quiz_id = r.quiz_id
             WHERE r.attempt_id = ?
@@ -604,6 +745,8 @@ def student_dashboard(student_id: int):
                     "concept_tag": tag,
                     "acc_pct": acc,
                     "mastered": int(mrow["mastered"]) if mrow else 0,
+                    "correct": int(row["correct"] or 0),
+                    "total": int(row["total"] or 0),
                 }
             )
 
@@ -646,25 +789,44 @@ def modules():
     """Show all available modules."""
     db = get_db()
     cur = db.execute(
-        "SELECT module_id, title, description, nf_level, concept_tag, resource_url FROM module ORDER BY module_id"
+        """
+        SELECT title, description, resource_url
+        FROM module
+        WHERE resource_url IN ('/module/fundamentals','/module/norm')
+        ORDER BY title
+        """
     )
-    modules = cur.fetchall()
+    rows = cur.fetchall()
+
+    modules = []
+    for row in rows:
+        link = row["resource_url"] or ""
+        title = row["title"]
+        if not link.startswith("/"):
+            link = "/module/fundamentals" if "fund" in (title or "").lower() else "/module/norm"
+        modules.append(
+            {
+                "title": title,
+                "description": row["description"],
+                "resource_url": link,
+            }
+        )
+
+    if not modules:
+        modules = [
+            {
+                "title": "Data Modeling & DBMS Fundamentals",
+                "description": "Understand core modeling concepts and DBMS components.",
+                "resource_url": "/module/fundamentals",
+            },
+            {
+                "title": "Normalization & Dependencies",
+                "description": "Practice normalization steps and dependency analysis.",
+                "resource_url": "/module/norm",
+            },
+        ]
+
     return render_template("modules.html", modules=modules)
-
-
-@app.route("/module/<int:module_id>")
-@login_required
-def module_page(module_id: int):
-    db = get_db()
-    cur = db.execute(
-        "SELECT module_id, title, description, nf_level, concept_tag, resource_url FROM module WHERE module_id=?",
-        (module_id,),
-    )
-    module = cur.fetchone()
-    if not module:
-        flash("Module not found.")
-        return redirect(url_for("index"))
-    return render_template("module.html", module=module)
 
 
 @app.route("/module/fundamentals")

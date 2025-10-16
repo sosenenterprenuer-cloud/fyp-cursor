@@ -2,8 +2,8 @@
 {% block title %}Learning Modules{% endblock %}
 {% block content %}
 <div class="modules-header">
-  <h1>Learning Modules</h1>
-  <p>Master database normalization concepts through these interactive modules.</p>
+  <h1>Focus on the Two Core Concepts</h1>
+  <p>Deepen your understanding of data modeling foundations and normalization techniques before moving on to advanced topics.</p>
 </div>
 
 <div class="modules-grid">
@@ -11,27 +11,18 @@
   <div class="module-card">
     <div class="module-header">
       <h3>{{ module.title }}</h3>
-      <span class="nf-level">{{ module.nf_level }}</span>
+      <span class="nf-level">Core Concept</span>
     </div>
     <p class="module-description">{{ module.description }}</p>
     <div class="module-actions">
-      <a href="{{ url_for('module_page', module_id=module.module_id) }}" class="btn btn-primary">
-        Study Module
-      </a>
-      {% if module.resource_url %}
-        <a href="{{ module.resource_url }}" target="_blank" class="btn btn-secondary">
-          External Resource
-        </a>
-      {% endif %}
+      <a href="{{ module.resource_url }}" class="btn">Start Learning</a>
     </div>
   </div>
   {% endfor %}
 </div>
 
 <div class="modules-footer">
-  <p>Complete all modules to master database normalization concepts.</p>
-  <a href="{{ url_for('student_dashboard', student_id=session.get('student_id')) }}" class="btn">
-    Back to Dashboard
-  </a>
+  <p>Master both modules to unlock the next topic.</p>
+  <a href="{{ url_for('student_dashboard', student_id=session.get('student_id')) }}" class="btn btn-outline">Back to Dashboard</a>
 </div>
 {% endblock %}

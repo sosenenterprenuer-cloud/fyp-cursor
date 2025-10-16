@@ -2,8 +2,8 @@
 {% block title %}Home - PLA Quiz{% endblock %}
 {% block content %}
 <section class="hero">
-  <h1>Database Normalization Practice</h1>
-  <p>Master Functional Dependencies, 1NF, 2NF, and 3NF with quick quizzes.</p>
+  <h1>Database Mastery Practice</h1>
+  <p>Strengthen your skills in Data Modeling &amp; DBMS Fundamentals and Normalization &amp; Dependencies with quick quizzes.</p>
   {% if session.get('student_id') %}
     <a class="btn" href="{{ url_for('quiz') }}">Start New Quiz</a>
   {% else %}
