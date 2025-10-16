@@ -106,6 +106,7 @@ def _read_csv(csv_path: Path) -> List[Mapping[str, str]]:
     csv_path = _resolve_csv_path(csv_path)
     if not csv_path.exists():
         raise CsvImportError(f"Missing CSV file: {csv_path}")
+    print(f"[INFO] Using quiz CSV: {csv_path}")
 
     with csv_path.open(newline="", encoding="utf-8-sig") as handle:
         reader = csv.DictReader(handle)

@@ -20,7 +20,7 @@ Follow these steps in **Command Prompt** to set up the project database on Windo
    py -m scripts.stabilize_db_and_app
    ```
 
-4. Import the curated 30-question bank (run once, or whenever you need to top up the quiz table; again, `python` works if `py` is unavailable):
+4. Import the curated 30-question bank (run once, or whenever you need to top up the quiz table; again, `python` works if `py` is unavailable). The CSV lives in the repository under `data\quiz_30.csv`:
    ```cmd
    py -m scripts.import_questions data\quiz_30.csv
    ```
