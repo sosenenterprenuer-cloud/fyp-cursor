@@ -12,6 +12,10 @@ import sys
 from pathlib import Path
 from typing import Iterable, List, Mapping
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_CSV = REPO_ROOT / "data" / "quiz_30.csv"
+
+
 EXPECTED_HEADERS = [
     "q_no",
     "question",
@@ -72,7 +76,34 @@ def _validate_rows(rows: Iterable[Mapping[str, str]]) -> List[Mapping[str, str]]
     return validated
 
 
+def _resolve_csv_path(raw_path: Path | str) -> Path:
+    """Resolve a CSV path in a Windows-friendly manner."""
+
+    candidate = Path(raw_path)
+    # Direct hit first (absolute or relative to CWD)
+    if candidate.exists():
+        return candidate
+
+    if not candidate.is_absolute():
+        guesses = [
+            Path.cwd() / candidate,
+            REPO_ROOT / candidate,
+        ]
+
+        if candidate.name:
+            guesses.append(REPO_ROOT / "data" / candidate.name)
+
+        for guess in guesses:
+            if guess.exists():
+                return guess
+
+    raise CsvImportError(
+        f"Missing CSV file: {candidate if candidate.is_absolute() else candidate.as_posix()}"
+    )
+
+
 def _read_csv(csv_path: Path) -> List[Mapping[str, str]]:
+    csv_path = _resolve_csv_path(csv_path)
     if not csv_path.exists():
         raise CsvImportError(f"Missing CSV file: {csv_path}")
 
@@ -150,7 +181,7 @@ def import_questions(csv_path: Path) -> int:
 def main(argv: List[str]) -> None:
     if len(argv) not in {1, 2}:
         raise SystemExit("Usage: python scripts/import_questions.py [quiz.csv]")
-    csv_path = Path(argv[1]) if len(argv) == 2 else Path("data/quiz_30.csv")
+    csv_path = Path(argv[1]) if len(argv) == 2 else DEFAULT_CSV
     try:
         inserted = import_questions(csv_path)
     except CsvImportError as exc:
