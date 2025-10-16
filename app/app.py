@@ -2,6 +2,7 @@ import os
 import json
 import sqlite3
 import secrets
+import random
 from datetime import datetime
 from functools import wraps
 from typing import Any, Dict, List, Optional
@@ -475,10 +476,28 @@ def _get_or_create_open_attempt(student_id: int) -> int:
     if row:
         return int(row["attempt_id"])
     started_at = datetime.utcnow().isoformat()
-    db.execute(
-        "INSERT INTO attempt (student_id, nf_scope, started_at, items_total, items_correct, score_pct) VALUES (?,?,?,?,?,?)",
-        (student_id, "FD+1NF+2NF+3NF", started_at, 10, 0, 0.0),
+    attempt_cols = [r[1] for r in db.execute("PRAGMA table_info(attempt)")]
+    params = (
+        student_id,
+        "Data Modeling & DBMS Fundamentals + Normalization & Dependencies",
+        started_at,
+        0,
+        0,
+        0.0,
     )
+    if "source" in attempt_cols:
+        db.execute(
+            """
+            INSERT INTO attempt (student_id, nf_scope, started_at, items_total, items_correct, score_pct, source)
+            VALUES (?,?,?,?,?,?,?)
+            """,
+            params + ("live",),
+        )
+    else:
+        db.execute(
+            "INSERT INTO attempt (student_id, nf_scope, started_at, items_total, items_correct, score_pct) VALUES (?,?,?,?,?,?)",
+            params,
+        )
     db.commit()
     cur = db.execute(
         "SELECT attempt_id FROM attempt WHERE student_id=? AND started_at=?",
@@ -487,27 +506,79 @@ def _get_or_create_open_attempt(student_id: int) -> int:
     return int(cur.fetchone()["attempt_id"])  # type: ignore[index]
 
 
-def _select_questions_payload() -> List[Dict[str, Any]]:
+def _select_questions_payload(total: int = 10, per_category: int = 5) -> List[Dict[str, Any]]:
     db = get_db()
-    blueprint = [("FD", 3), ("1NF", 3), ("2NF", 2), ("3NF", 2)]
+    categories = [
+        "Data Modeling & DBMS Fundamentals",
+        "Normalization & Dependencies",
+    ]
     questions: List[Dict[str, Any]] = []
-    for nf_level, need in blueprint:
+    seen: set[int] = set()
+
+    for cat in categories:
         cur = db.execute(
-            "SELECT quiz_id, question, options_text, concept_tag FROM quiz WHERE nf_level=? ORDER BY RANDOM() LIMIT ?",
-            (nf_level, need),
+            """
+            SELECT quiz_id, question, options_text, concept_tag, nf_level
+            FROM quiz
+            WHERE two_category = ?
+            ORDER BY RANDOM()
+            LIMIT ?
+            """,
+            (cat, per_category),
         )
         for row in cur.fetchall():
-            options = safe_parse_options(row["options_text"]) if row["options_text"] else []
+            qid = int(row["quiz_id"])
+            if qid in seen:
+                continue
+            options = safe_parse_options(row["options_text"] or "[]")
+            if len(options) != 4:
+                continue
             questions.append(
                 {
-                    "quiz_id": int(row["quiz_id"]),
+                    "quiz_id": qid,
                     "question": row["question"],
                     "options": options,
-                    "nf_level": nf_level,
+                    "nf_level": row["nf_level"],
                     "concept_tag": row["concept_tag"],
                 }
             )
-    return questions
+            seen.add(qid)
+
+    if len(questions) < total:
+        remaining = total - len(questions)
+        placeholders = ",".join(["?"] * len(categories))
+        cur = db.execute(
+            f"""
+            SELECT quiz_id, question, options_text, concept_tag, nf_level
+            FROM quiz
+            WHERE two_category IN ({placeholders})
+            ORDER BY RANDOM()
+            LIMIT ?
+            """,
+            (*categories, remaining),
+        )
+        for row in cur.fetchall():
+            qid = int(row["quiz_id"])
+            if qid in seen:
+                continue
+            options = safe_parse_options(row["options_text"] or "[]")
+            if len(options) != 4:
+                continue
+            questions.append(
+                {
+                    "quiz_id": qid,
+                    "question": row["question"],
+                    "options": options,
+                    "nf_level": row["nf_level"],
+                    "concept_tag": row["concept_tag"],
+                }
+            )
+            seen.add(qid)
+            if len(questions) >= total:
+                break
+
+    random.shuffle(questions)
+    return questions[:total]
 
 
 @app.route("/api/quiz_progressive")
@@ -516,6 +587,19 @@ def api_quiz_progressive():
     student_id = int(session["student_id"])  # never trust posted student_id
     attempt_id = _get_or_create_open_attempt(student_id)
     questions = _select_questions_payload()
+    if not questions:
+        return jsonify({"error": "quiz unavailable"}), 503
+
+    db = get_db()
+    try:
+        db.execute(
+            "UPDATE attempt SET items_total=? WHERE attempt_id=?",
+            (len(questions), attempt_id),
+        )
+        db.commit()
+    except Exception as exc:
+        print("[QUIZ] Failed to update attempt total:", repr(exc))
+
     return jsonify({"attempt_id": attempt_id, "questions": questions})
 
 
