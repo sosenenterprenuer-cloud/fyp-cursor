@@ -7,7 +7,14 @@ runtime seeding helpers. The canonical file lives at:
 
 If you clone the repository and do not see the CSV, double-check that your Git
 client pulled subdirectories (some sparse-checkout tools omit data folders by
-default). You can confirm locally with:
+default). Git does **not** sync files in real time—pull the latest commits to
+update your local copy:
+
+```bash
+git pull
+```
+
+After pulling, you can confirm locally with:
 
 ```bash
 ls data

@@ -1,6 +1,8 @@
 # Windows first-run guide
 
 Follow these steps in **Command Prompt** to set up the project database on Windows.
+If you just cloned the repository, run `git pull` first to make sure you have the
+latest files (Git updates are not real-time).
 
 1. Navigate to your project folder and create a virtual environment (optional but recommended):
    ```cmd
