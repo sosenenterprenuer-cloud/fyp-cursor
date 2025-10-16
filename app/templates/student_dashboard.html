@@ -3,115 +3,79 @@
 {% block content %}
 <div class="dashboard-header">
   <h1>Student Dashboard</h1>
-  <p>Track your progress and master database normalization concepts.</p>
+  <p>Review your latest quiz and see how close you are to unlocking the next topic.</p>
 </div>
 
 <div class="dashboard-grid">
-  <!-- Recent Score Card -->
   <div class="dashboard-card score-card">
-    <h3>Recent Score</h3>
+    <h3>Recent Quiz</h3>
     {% if last_attempt %}
       <div class="score-display">
-        <span class="score-value">{{ '%.0f'|format(last_attempt.score_pct) if last_attempt and last_attempt.score_pct else 0 }}%</span>
-        <span class="score-date">{{ last_attempt.started_at[:10] if last_attempt and last_attempt.started_at else '' }}</span>
+        <span class="score-value">{{ '%.1f'|format(last_attempt.score_pct or 0) }}%</span>
+        <span class="score-date">{{ last_attempt.started_at[:10] if last_attempt.started_at else '' }}</span>
       </div>
-      <a href="{{ url_for('reattempt') }}" class="btn btn-primary">Reattempt Quiz</a>
+      <a href="{{ url_for('reattempt') }}" class="btn">Retake Quiz</a>
     {% else %}
-      <div class="score-display">
-        <span class="score-value">--</span>
-        <span class="score-date">No attempts yet</span>
-      </div>
-      <a href="{{ url_for('quiz') }}" class="btn btn-primary">Take Quiz</a>
+      <p class="muted">Take your first quiz to start tracking mastery.</p>
+      <a href="{{ url_for('quiz') }}" class="btn">Start Quiz</a>
     {% endif %}
   </div>
 
-  <!-- Next Step Card -->
   <div class="dashboard-card next-step-card">
-    <h3>Next Recommendation</h3>
-    {% if two_cat.unlocked_next %}
-      <div class="next-step-content success">
-        <h4>Recommendation Unlocked</h4>
-        <p>Perfect 50/50 in both concepts! You're ready for the advanced recommendation.</p>
-        <a href="{{ url_for('modules') }}" class="btn btn-secondary">Explore Modules</a>
-      </div>
-    {% elif next_step %}
-      <div class="next-step-content">
-        <h4>Focus on {{ next_step }}</h4>
-        <p>Score 50/50 here to unlock the next recommendation.</p>
-        <div class="progress-gauge">
-          <span class="gauge-value">{{ '%.0f'|format(next_step_accuracy) }}%</span>
-          <div class="gauge-bar">
-            <div class="gauge-fill" style="width: {{ next_step_accuracy }}%"></div>
-          </div>
-        </div>
-        {% if focus_module_url %}
-          <a href="{{ focus_module_url }}" class="btn btn-secondary">Review Module</a>
-        {% else %}
-          <a href="{{ url_for('modules') }}" class="btn btn-secondary">Review Modules</a>
-        {% endif %}
-      </div>
+    <h3>Progression Status</h3>
+    {% if unlocked_next %}
+      <div class="notice success">✅ Perfect score in both topics! You can proceed.</div>
+      <a class="btn primary" href="/thanks">Proceed to Next Topic</a>
     {% else %}
-      <div class="next-step-content">
-        <p class="mastered-message">Take your first quiz attempt to see personalized recommendations.</p>
-        <a href="{{ url_for('quiz') }}" class="btn btn-secondary">Start Quiz</a>
-      </div>
+      <div class="notice warn">🔒 Get 100% in both topics (this recent quiz) to proceed.</div>
+      {% if last_attempt %}
+        <p class="muted">Retake the quiz and aim for full marks in each topic.</p>
+      {% else %}
+        <p class="muted">Complete a quiz attempt to unlock the next topic.</p>
+      {% endif %}
     {% endif %}
   </div>
 </div>
 
-<section class="card mastery-overview-card">
+<section class="card mastery-card">
   <h3>Concept Path to Mastery</h3>
-  <p class="muted">Each concept is worth 50 points. Score full marks in both to unlock the next recommendation.</p>
+  <p class="muted">Each concept is worth 50 points. You must get 50/50 in both concepts (100/100 total) to unlock the next topic.</p>
 
-  <div class="mastery-grid">
-    {% for step in mastery_steps %}
-      <div class="mastery-track">
-        <div class="mastery-step">
-          <span class="step-label">Attempt</span>
-          <p class="step-value">{{ step.attempts }} {{ 'attempt' if step.attempts == 1 else 'attempts' }}</p>
-        </div>
-        <div class="mastery-step">
-          <span class="step-label">Score Full Marks</span>
-          <div class="progress-track">
-            <div class="progress-fill" style="width: {{ step.points_pct }}%"></div>
-          </div>
-          <p class="step-value">{{ '%.1f'|format(step.points) }}/50 pts · {{ '%.1f'|format(step.accuracy) }}% accuracy</p>
-        </div>
-        <div class="mastery-step {{ 'status-success' if step.full_marks else 'status-pending' }}">
-          <span class="step-label">Excelled Mastery</span>
-          <p class="step-value">{{ step.mastery_text }}</p>
-        </div>
-        <div class="mastery-step recommendation-step">
-          <span class="step-label">Recommendation</span>
-          <p class="step-value">{{ step.recommendation }}</p>
-          {% if not step.full_marks %}
-            <a class="inline-link" href="{{ step.module_url }}">Review module</a>
-          {% endif %}
-        </div>
+  <div class="mastery-summary">
+    <div class="mastery-line">
+      <div class="mastery-line__header">
+        <h4>Data Modeling &amp; DBMS Fundamentals</h4>
+        <span>{{ '%.1f'|format(two_cat.fund.pct) }}% → {{ '%.1f'|format(two_cat.fund.pts) }} / 50 ({{ two_cat.fund.correct }}/{{ two_cat.fund.total }})</span>
       </div>
-    {% endfor %}
+      <div class="progress-bar">
+        <span style="width: {{ two_cat.fund.pct }}%"></span>
+      </div>
+    </div>
+
+    <div class="mastery-line">
+      <div class="mastery-line__header">
+        <h4>Normalization &amp; Dependencies</h4>
+        <span>{{ '%.1f'|format(two_cat.norm.pct) }}% → {{ '%.1f'|format(two_cat.norm.pts) }} / 50 ({{ two_cat.norm.correct }}/{{ two_cat.norm.total }})</span>
+      </div>
+      <div class="progress-bar">
+        <span style="width: {{ two_cat.norm.pct }}%"></span>
+      </div>
+    </div>
   </div>
 
-  <div class="overall-status">
-    <p><strong>Overall Progress:</strong> {{ two_cat.overall_points }}/100 points</p>
-    {% if two_cat.unlocked_next %}
-      <p class="muted">✅ Recommendation unlocked – continue to the next topic.</p>
-      <a class="btn" href="/thanks">Finish Prototype</a>
-    {% else %}
-      <p class="muted">🔒 Earn 50/50 in both concepts (100/100 total) to unlock the recommendation.</p>
-    {% endif %}
+  <div class="mastery-overall">
+    <strong>Overall:</strong> {{ '%.1f'|format(two_cat.overall_points) }} / 100
   </div>
 </section>
 
 <section class="card" style="padding:1rem;">
   <h3>Learning Modules</h3>
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:.75rem;">
-      <a class="btn" href="/module/fundamentals">Data Modeling & DBMS Fundamentals</a>
-      <a class="btn" href="/module/norm">Normalization & Dependencies</a>
+  <div class="module-links">
+    <a class="btn" href="/module/fundamentals">Data Modeling &amp; DBMS Fundamentals</a>
+    <a class="btn" href="/module/norm">Normalization &amp; Dependencies</a>
   </div>
 </section>
 
-<!-- Progress Chart -->
 <div class="progress-section">
   <h2>Progress Over Time</h2>
   <div class="chart-container">
@@ -125,23 +89,23 @@
   const ctx = document.getElementById('scoreChart').getContext('2d');
   new Chart(ctx, {
     type: 'line',
-    data: { 
-      labels, 
-      datasets: [{ 
-        label: 'Score %', 
-        data: scores, 
-        borderColor: '#1e88e5',
-        backgroundColor: 'rgba(30, 136, 229, 0.1)',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Score %',
+        data: scores,
+        borderColor: '#4f46e5',
+        backgroundColor: 'rgba(79, 70, 229, 0.12)',
         fill: true
-      }] 
+      }]
     },
-    options: { 
+    options: {
       responsive: true,
-      scales: { 
-        y: { 
-          beginAtZero: true, 
-          max: 100 
-        } 
+      scales: {
+        y: {
+          beginAtZero: true,
+          max: 100
+        }
       },
       plugins: {
         legend: {

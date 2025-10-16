@@ -2,37 +2,34 @@
 {% from '_partials_learning.html' import flashcard, mcq %}
 {% block title %}Normalization & Dependencies{% endblock %}
 {% block content %}
-<div class="module-hero">
-  <div class="module-hero__content">
-    <p class="module-tag">Learning Path</p>
-    <h1>Normalization & Dependencies</h1>
-    <p>Eliminate anomalies by understanding how attributes depend on each other and applying disciplined normalization steps.</p>
-  </div>
+<div class="hero">
+  <h2>Normalization &amp; Dependencies</h2>
+  <p>Refine your schema by eliminating anomalies and understanding how attributes depend on one another.</p>
 </div>
 
 <div class="module-wrapper">
-  <section class="chapter-card chapter-indigo">
-    <span class="chapter-pill">Chapter 1</span>
+  <section class="card module-section">
+    <span class="pill" style="background:#eef2ff;color:#4f46e5">Chapter: Normalization</span>
     <h2>Normalization</h2>
-    <p>Normalization restructures tables so each fact lives in exactly one place. 1NF removes repeating groups, 2NF eliminates partial dependencies on composite keys, and 3NF/BCNF tackle transitive or overlapping determinants.</p>
-    <p>Decompose large tables into focused relations and reconnect them with keys to maintain integrity without redundancy.</p>
+    <p>Normalization organizes tables so that each fact lives in the right place. Progressing through normal forms removes redundant data, update anomalies, and inconsistent dependencies.</p>
+    <p>Use the normal forms to iteratively improve table design while keeping real-world usage in mind.</p>
     <div class="flashcard-grid">
-      {{ flashcard("Goal of normalization?", "Reduce redundancy and avoid insert, update, or delete anomalies.") }}
-      {{ flashcard("1NF reminder", "Each column holds atomic values—no repeating groups or lists in a single cell.") }}
-      {{ flashcard("3NF vs BCNF", "3NF removes transitive dependencies; BCNF ensures every determinant is a candidate key.") }}
+      {{ flashcard("1NF Requirement", "Ensure atomic attribute values and a defined primary key.") }}
+      {{ flashcard("2NF Check", "Eliminate partial dependencies on a composite key by moving attributes to new tables.") }}
+      {{ flashcard("3NF Insight", "Attributes should depend only on the key, not on other non-key attributes.") }}
     </div>
   </section>
 
-  <section class="chapter-card chapter-amber">
-    <span class="chapter-pill">Chapter 2</span>
+  <section class="card module-section">
+    <span class="pill" style="background:#fffbeb;color:#92400e">Chapter: Dependencies</span>
     <h2>Dependencies</h2>
-    <p>Functional dependencies (FDs) describe how attributes determine one another. Mapping determinants exposes where redundancy hides and guides decompositions. Keep determinants with their dependents to preserve meaning.</p>
-    <p>Use dependency diagrams and test data to confirm each table keeps the dependencies you need and no more.</p>
-    <div class="quiz-card" id="norm-quiz">
+    <p>Functional dependencies capture how attributes determine one another. Mapping them clearly guides normalization steps and highlights when additional tables or keys are needed.</p>
+    <p>Practice reading and decomposing dependencies so the design stays flexible and accurate.</p>
+    <div class="card mini-quiz-card" id="norm-quiz">
       <h3>3-Question Mini Check</h3>
-      {{ mcq("norm_q1","Which scenario violates 1NF?","Each customer row has a single phone","Phone numbers stored as a list in one column","Phone numbers moved to a child table","b") }}
-      {{ mcq("norm_q2","Partial dependency means…","Non-key attribute depends on the full key","Non-key attribute depends on part of a composite key","A key depends on a non-key","b") }}
-      {{ mcq("norm_q3","How do you fix a transitive dependency?","Keep the table as-is","Split into new tables so non-keys depend directly on keys","Add redundant attributes","b") }}
+      {{ mcq("norm_q1","Functional dependencies describe…","Physical storage locations","Deterministic attribute relationships","SQL performance hints","b") }}
+      {{ mcq("norm_q2","A table violates 2NF when…","Attributes are atomic","Non-key attributes depend on only part of a composite key","It lacks a surrogate key","b") }}
+      {{ mcq("norm_q3","To reach 3NF you must…","Remove all rows","Ensure every non-key attribute depends only on the primary key","Switch to a document store","b") }}
       <p class="mcq-result"></p>
       <p class="completion-badge"></p>
       <button class="btn" onclick="gradeModule('norm-quiz','norm')">Check Answers</button>

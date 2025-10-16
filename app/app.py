@@ -279,57 +279,81 @@ def categorize_time(seconds: float) -> str:
 
 
 def get_two_category_mastery(student_id: int):
+    empty = {
+        "fund": {"pct": 0.0, "pts": 0.0, "total": 0, "correct": 0},
+        "norm": {"pct": 0.0, "pts": 0.0, "total": 0, "correct": 0},
+        "overall_points": 0.0,
+    }
+
     with get_db() as conn:
-        quiz_cols = [r[1] for r in conn.execute("PRAGMA table_info(quiz)")]
-        attempt_cols = [r[1] for r in conn.execute("PRAGMA table_info(attempt)")]
+        quiz_cols = [row[1] for row in conn.execute("PRAGMA table_info(quiz)")]
+        attempt_cols = [row[1] for row in conn.execute("PRAGMA table_info(attempt)")]
         if "two_category" not in quiz_cols:
-            return {
-                "fund": {"acc_pct": 0, "attempts": 0},
-                "norm": {"acc_pct": 0, "attempts": 0},
-                "fund_points": 0,
-                "norm_points": 0,
-                "overall_points": 0,
-                "unlocked_next": False,
-            }
-        source_guard = "IFNULL(a.source,'live')" if "source" in attempt_cols else "'live'"
-        q = f"""
-        SELECT q.two_category AS cat,
-               ROUND(AVG(r.score)*100.0, 1) AS acc_pct,
-               COUNT(*) AS n
-        FROM response r
-        JOIN quiz q     ON q.quiz_id = r.quiz_id
-        JOIN attempt a  ON a.attempt_id = r.attempt_id
-        WHERE r.student_id = ?
-          AND {source_guard} = 'live'
-          AND q.two_category IN ('Data Modeling & DBMS Fundamentals','Normalization & Dependencies')
-        GROUP BY q.two_category
-        """
-        rows = conn.execute(q, (student_id,)).fetchall()
+            return empty
 
-    fund = {"acc_pct": 0.0, "attempts": 0}
-    norm = {"acc_pct": 0.0, "attempts": 0}
-    for r in rows:
-        d = {"acc_pct": float(r["acc_pct"] or 0.0), "attempts": int(r["n"] or 0)}
-        if r["cat"] == "Data Modeling & DBMS Fundamentals":
-            fund = d
-        elif r["cat"] == "Normalization & Dependencies":
-            norm = d
+        source_guard = "IFNULL(source,'live')" if "source" in attempt_cols else "'live'"
+        attempt_row = conn.execute(
+            f"""
+            SELECT attempt_id
+            FROM attempt
+            WHERE student_id=?
+              AND {source_guard}='live'
+            ORDER BY started_at DESC
+            LIMIT 1
+            """,
+            (student_id,),
+        ).fetchone()
 
-    fund_points = round((fund["acc_pct"] / 100.0) * 50.0, 1)
-    norm_points = round((norm["acc_pct"] / 100.0) * 50.0, 1)
+        if not attempt_row:
+            return empty
+
+        attempt_id = int(attempt_row["attempt_id"])
+        rows = conn.execute(
+            """
+            SELECT q.two_category AS cat,
+                   SUM(r.score) AS correct,
+                   COUNT(*) AS total
+            FROM response r
+            JOIN quiz q ON q.quiz_id = r.quiz_id
+            WHERE r.student_id=? AND r.attempt_id=?
+            GROUP BY q.two_category
+            """,
+            (student_id, attempt_id),
+        ).fetchall()
+
+    fund_total = fund_correct = 0
+    norm_total = norm_correct = 0
+    for row in rows:
+        cat = row["cat"]
+        total = int(row["total"] or 0)
+        correct = int(row["correct"] or 0)
+        if cat == "Data Modeling & DBMS Fundamentals":
+            fund_total = total
+            fund_correct = correct
+        elif cat == "Normalization & Dependencies":
+            norm_total = total
+            norm_correct = correct
+
+    fund_pct = round(100.0 * fund_correct / fund_total, 1) if fund_total else 0.0
+    norm_pct = round(100.0 * norm_correct / norm_total, 1) if norm_total else 0.0
+    fund_points = round((fund_pct / 100.0) * 50.0, 1)
+    norm_points = round((norm_pct / 100.0) * 50.0, 1)
     overall_points = round(fund_points + norm_points, 1)
 
-    unlocked_next = (
-        fund_points >= 50.0 and norm_points >= 50.0 and overall_points >= 100.0
-    )
-
     return {
-        "fund": fund,
-        "norm": norm,
-        "fund_points": fund_points,
-        "norm_points": norm_points,
+        "fund": {
+            "pct": fund_pct,
+            "pts": fund_points,
+            "total": fund_total,
+            "correct": fund_correct,
+        },
+        "norm": {
+            "pct": norm_pct,
+            "pts": norm_points,
+            "total": norm_total,
+            "correct": norm_correct,
+        },
         "overall_points": overall_points,
-        "unlocked_next": unlocked_next,
     }
 
 def compute_concept_stats(attempt_id: int) -> List[Dict[str, Any]]:
@@ -354,9 +378,11 @@ def compute_concept_stats(attempt_id: int) -> List[Dict[str, Any]]:
 def next_step_concept(student_id: int) -> Optional[str]:
     """Determine which concept still needs a perfect score."""
     mastery = get_two_category_mastery(student_id)
-    if mastery.get("fund_points", 0.0) < 50.0:
+    fund = mastery.get("fund", {}) if isinstance(mastery, dict) else {}
+    norm = mastery.get("norm", {}) if isinstance(mastery, dict) else {}
+    if float(fund.get("pct", 0.0)) < 100.0:
         return "Data Modeling & DBMS Fundamentals"
-    if mastery.get("norm_points", 0.0) < 50.0:
+    if float(norm.get("pct", 0.0)) < 100.0:
         return "Normalization & Dependencies"
     return None
 
@@ -443,7 +469,30 @@ def logout():
 @app.route("/quiz")
 @login_required
 def quiz():
-    return render_template("quiz.html")
+    student_id = int(session["student_id"])  # never trust posted ids
+    attempt_id = _get_or_create_open_attempt(student_id)
+    questions = _select_questions_payload()
+
+    if not questions:
+        flash("Quiz is not available right now. Please try again shortly.")
+        return redirect(url_for("student_dashboard", student_id=student_id))
+
+    db = get_db()
+    try:
+        db.execute(
+            "UPDATE attempt SET items_total=? WHERE attempt_id=?",
+            (len(questions), attempt_id),
+        )
+        db.commit()
+    except Exception as exc:
+        print("[QUIZ] Failed to store attempt length:", repr(exc))
+
+    return render_template(
+        "quiz.html",
+        questions=questions,
+        attempt_id=attempt_id,
+        student_id=student_id,
+    )
 
 
 @app.route("/reattempt")
@@ -746,144 +795,34 @@ def student_dashboard(student_id: int):
 
     db = get_db()
 
-    # Attempts history
     cur = db.execute(
         "SELECT attempt_id, started_at, score_pct FROM attempt WHERE student_id=? AND score_pct IS NOT NULL ORDER BY started_at ASC",
         (current_student_id,),
     )
     attempts = cur.fetchall()
-    labels = [f"A{idx+1}" for idx, _ in enumerate(attempts)]
+    labels = [f"A{idx + 1}" for idx, _ in enumerate(attempts)]
     scores = [float(a["score_pct"]) for a in attempts]
 
-    # Last attempt details
     cur = db.execute(
-        "SELECT attempt_id, started_at, score_pct FROM attempt WHERE student_id=? AND items_total IS NOT NULL ORDER BY started_at DESC LIMIT 1",
+        "SELECT attempt_id, started_at, score_pct FROM attempt WHERE student_id=? ORDER BY started_at DESC LIMIT 1",
         (current_student_id,),
     )
     last = cur.fetchone()
-    last_details: List[Dict[str, Any]] = []
-    if last:
-        cur = db.execute(
-            """
-            SELECT q.question, r.answer, q.correct_answer, q.explanation, q.concept_tag,
-                   r.response_time_s, r.score
-            FROM response r
-            JOIN quiz q ON q.quiz_id = r.quiz_id
-            WHERE r.attempt_id = ?
-            ORDER BY r.response_id ASC
-            """,
-            (last["attempt_id"],),
-        )
-        for row in cur.fetchall():
-            t = float(row["response_time_s"]) if row["response_time_s"] is not None else 0.0
-            last_details.append(
-                {
-                    "question": row["question"],
-                    "answer": row["answer"],
-                    "correct_answer": row["correct_answer"],
-                    "explanation": row["explanation"],
-                    "concept_tag": row["concept_tag"],
-                    "response_time_s": t,
-                    "time_category": categorize_time(t),
-                    "score": int(row["score"]) if row["score"] is not None else 0,
-                }
-            )
-
-    # Per-concept metrics (last attempt) plus mastery state - NO TIME DISPLAY
-    per_concept: List[Dict[str, Any]] = []
-    if last:
-        cur = db.execute(
-            """
-            SELECT q.concept_tag AS concept_tag,
-                   SUM(COALESCE(r.score, 0)) AS correct,
-                   COUNT(*) AS total,
-                   100.0 * SUM(COALESCE(r.score, 0)) / COUNT(*) AS acc_pct
-            FROM response r
-            JOIN quiz q ON q.quiz_id = r.quiz_id
-            WHERE r.attempt_id = ?
-            GROUP BY q.concept_tag
-            ORDER BY q.concept_tag
-            """,
-            (last["attempt_id"],),
-        )
-        for row in cur.fetchall():
-            tag = row["concept_tag"]
-            acc = float(row["acc_pct"]) if row["acc_pct"] is not None else 0.0
-            mcur = db.execute(
-                "SELECT mastered FROM student_mastery WHERE student_id=? AND concept_tag=?",
-                (current_student_id, tag),
-            )
-            mrow = mcur.fetchone()
-            per_concept.append(
-                {
-                    "concept_tag": tag,
-                    "acc_pct": acc,
-                    "mastered": int(mrow["mastered"]) if mrow else 0,
-                    "correct": int(row["correct"] or 0),
-                    "total": int(row["total"] or 0),
-                }
-            )
 
     two_cat = get_two_category_mastery(current_student_id)
-    mastery_steps: List[Dict[str, Any]] = []
-    concept_meta = [
-        ("fund", "Data Modeling & DBMS Fundamentals", "fund_points", "/module/fundamentals"),
-        ("norm", "Normalization & Dependencies", "norm_points", "/module/norm"),
-    ]
-    for key, label, points_key, module_url in concept_meta:
-        metrics = two_cat.get(key, {}) if isinstance(two_cat, dict) else {}
-        accuracy = float(metrics.get("acc_pct", 0.0)) if isinstance(metrics, dict) else 0.0
-        attempts_ct = int(metrics.get("attempts", 0)) if isinstance(metrics, dict) else 0
-        points = float(two_cat.get(points_key, 0.0)) if isinstance(two_cat, dict) else 0.0
-        pct = max(0.0, min((points / 50.0) * 100.0, 100.0))
-        full_marks = points >= 50.0
-        mastery_steps.append(
-            {
-                "key": key,
-                "name": label,
-                "attempts": attempts_ct,
-                "accuracy": accuracy,
-                "points": points,
-                "points_pct": pct,
-                "full_marks": full_marks,
-                "mastery_text": "Excelled mastery achieved!" if full_marks else "Still aiming for full marks.",
-                "recommendation": (
-                    "Perfect score unlocked the next recommendation."
-                    if full_marks
-                    else f"Review the {label} module and retake the quiz until you score 50/50."
-                ),
-                "module_url": module_url,
-            }
-        )
-
-    next_step = next_step_concept(current_student_id)
-    next_step_accuracy = 0.0
-    focus_module_url: Optional[str] = None
-    if next_step == "Data Modeling & DBMS Fundamentals":
-        focus_module_url = "/module/fundamentals"
-        next_step_accuracy = next(
-            (step["accuracy"] for step in mastery_steps if step["key"] == "fund"), 0.0
-        )
-    elif next_step == "Normalization & Dependencies":
-        focus_module_url = "/module/norm"
-        next_step_accuracy = next(
-            (step["accuracy"] for step in mastery_steps if step["key"] == "norm"), 0.0
-        )
-    else:
-        next_step_accuracy = 100.0 if two_cat.get("overall_points", 0.0) >= 100.0 else 0.0
+    fund = two_cat.get("fund", {})
+    norm = two_cat.get("norm", {})
+    unlocked_next = (
+        float(fund.get("pct", 0.0)) == 100.0 and float(norm.get("pct", 0.0)) == 100.0
+    )
 
     return render_template(
         "student_dashboard.html",
         labels=labels,
         scores=scores,
-        last_details=last_details,
-        per_concept=per_concept,
-        next_step=next_step,
-        next_step_accuracy=next_step_accuracy,
         last_attempt=last,
         two_cat=two_cat,
-        mastery_steps=mastery_steps,
-        focus_module_url=focus_module_url,
+        unlocked_next=unlocked_next,
     )
 
 
@@ -981,7 +920,10 @@ def thanks_page():
 @login_required
 def api_feedback():
     data = request.get_json(force=True) or {}
-    rating = int(data.get("rating", 0))
+    try:
+        rating = int(data.get("rating", 0))
+    except (TypeError, ValueError):
+        rating = 0
     comment = (data.get("comment") or "").strip()
     if rating < 1 or rating > 5:
         return jsonify({"ok": False, "error": "Invalid rating"}), 400

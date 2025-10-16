@@ -1,8 +1,8 @@
 {% extends 'base.html' %}
-{% block title %}End of Prototype{% endblock %}
+{% block title %}Thanks{% endblock %}
 {% block content %}
-<h2>End of Prototype</h2>
-<p><strong>Loving the experience ? Let’s take a moment to appreciate the creator & his AI tools. If not, give one star.</strong></p>
+<h2>Give a Rating</h2>
+<p><strong>Loving the experience? Let’s take a moment to appreciate the creator & his AI tools. If not, give one star.</strong></p>
 
 <div id="rating-box" class="card" style="padding:1rem;max-width:480px;">
   <div id="stars" style="font-size:28px;cursor:pointer;">
@@ -17,28 +17,38 @@
   <p id="statusMsg" class="muted" style="margin-top:.5rem;"></p>
 </div>
 
-<section class="card" style="padding:1rem;opacity:.6;margin-top:1rem;">
-  <h3>Next Recommendation</h3>
-  <p>This will appear in the full version.</p>
-  <button class="btn" disabled>Coming Soon</button>
-</section>
-
 <script>
 let picked = 0;
 const stars = document.querySelectorAll('#stars span');
-stars.forEach(s => {
-  s.addEventListener('mouseover', () => {
-    const v = parseInt(s.dataset.val);
-    stars.forEach(x => x.textContent = parseInt(x.dataset.val) <= v ? '★' : '☆');
+function paintStars(target) {
+  const v = parseInt(target.dataset.val || '0');
+  stars.forEach(x => {
+    x.textContent = parseInt(x.dataset.val) <= v ? '★' : '☆';
   });
-  s.addEventListener('click', () => { picked = parseInt(s.dataset.val); });
+}
+
+stars.forEach(s => {
+  s.addEventListener('mouseover', () => paintStars(s));
+  s.addEventListener('focus', () => paintStars(s));
+  s.addEventListener('click', () => {
+    picked = parseInt(s.dataset.val || '0');
+    paintStars(s);
+  });
 });
 document.getElementById('submitRating').addEventListener('click', async () => {
   const comment = document.getElementById('comment').value || '';
   if (!picked) { document.getElementById('statusMsg').textContent = 'Please pick 1-5 stars.'; return; }
-  const res = await fetch('/api/feedback', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ rating: picked, comment })});
-  const data = await res.json();
-  document.getElementById('statusMsg').textContent = data.ok ? 'Thanks for the feedback!' : (data.error || 'Error');
+  try {
+    const res = await fetch('/api/feedback', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ rating: picked, comment })
+    });
+    const data = await res.json();
+    document.getElementById('statusMsg').textContent = data.ok ? 'Thanks for the feedback!' : (data.error || 'Error');
+  } catch (err) {
+    document.getElementById('statusMsg').textContent = 'Unable to submit feedback right now.';
+  }
 });
 </script>
 {% endblock %}

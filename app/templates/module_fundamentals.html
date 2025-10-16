@@ -2,20 +2,17 @@
 {% from '_partials_learning.html' import flashcard, mcq %}
 {% block title %}Data Modeling & DBMS Fundamentals{% endblock %}
 {% block content %}
-<div class="module-hero">
-  <div class="module-hero__content">
-    <p class="module-tag">Learning Path</p>
-    <h1>Data Modeling & DBMS Fundamentals</h1>
-    <p>Build a strong foundation in representing real-world data and the database systems that keep it organized.</p>
-  </div>
+<div class="hero">
+  <h2>Data Modeling &amp; DBMS Fundamentals</h2>
+  <p>Lay the groundwork for successful databases by modeling real-world problems and understanding the engines that power them.</p>
 </div>
 
 <div class="module-wrapper">
-  <section class="chapter-card chapter-indigo">
-    <span class="chapter-pill">Chapter 1</span>
+  <section class="card module-section">
+    <span class="pill" style="background:#eef2ff;color:#4f46e5">Chapter: Data Modeling</span>
     <h2>Data Modeling</h2>
-    <p>Create clear blueprints of the domain using entities, attributes, and relationships. Entity-relationship diagrams (ERDs) capture how business concepts connect, while keys and constraints keep instances unique and accurate.</p>
-    <p>Great models separate conceptual thinking from physical storage so the design can evolve without disrupting the business rules.</p>
+    <p>Create blueprints that capture the relationships between entities, attributes, and business rules. Clean models reduce redundancy and keep future enhancements manageable.</p>
+    <p>Use entity-relationship diagrams (ERDs) to visualize how information connects, and rely on keys and constraints to enforce accuracy.</p>
     <div class="flashcard-grid">
       {{ flashcard("Entity vs Attribute?", "Entities are things you track; attributes describe their properties.") }}
       {{ flashcard("Primary vs Foreign key?", "Primary keys uniquely identify rows; foreign keys reference those identifiers in related tables.") }}
@@ -23,12 +20,12 @@
     </div>
   </section>
 
-  <section class="chapter-card chapter-green">
-    <span class="chapter-pill">Chapter 2</span>
+  <section class="card module-section">
+    <span class="pill" style="background:#ecfdf5;color:#065f46">Chapter: DBMS Fundamentals</span>
     <h2>DBMS Fundamentals</h2>
     <p>Database management systems execute SQL, optimize queries, and enforce ACID properties so data stays trustworthy. Indexes and storage engines speed up reads, while constraints prevent invalid values.</p>
     <p>Understanding these building blocks helps you design schemas that perform well and are easy to maintain.</p>
-    <div class="quiz-card" id="fund-quiz">
+    <div class="card mini-quiz-card" id="fund-quiz">
       <h3>3-Question Mini Check</h3>
       {{ mcq("fund_q1","What does a foreign key do?","Uniquely identifies a row","Links rows between related tables","Encrypts stored data","b") }}
       {{ mcq("fund_q2","In ER modeling, an attribute is…","A property describing an entity","A connector between entities","A physical data file","a") }}
