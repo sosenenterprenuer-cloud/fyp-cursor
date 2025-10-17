@@ -87,6 +87,46 @@ def get_db() -> sqlite3.Connection:
         ensure_column("attempt", "source", "ALTER TABLE attempt ADD COLUMN source TEXT")
         ensure_column("quiz",    "two_category", "ALTER TABLE quiz ADD COLUMN two_category TEXT")
 
+        def ensure_table(table: str, ddl: str) -> None:
+            try:
+                exists = conn.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+                    (table,),
+                ).fetchone()
+                if not exists:
+                    conn.executescript(ddl)
+                    conn.commit()
+            except Exception as e:
+                print(f"[DB MIGRATE] create {table}:", repr(e))
+
+        ensure_table(
+            "lecturer",
+            """
+CREATE TABLE IF NOT EXISTS lecturer (
+  lecturer_id   INTEGER PRIMARY KEY,
+  name          TEXT NOT NULL,
+  email         TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL
+);
+""",
+        )
+
+        try:
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO lecturer (name, email, password_hash)
+                VALUES (?, ?, ?)
+                """,
+                (
+                    "Admin Lecturer",
+                    "admin@lct.edu",
+                    "scrypt:32768:8:1$wTlANxNNLLoNn4Uq$6ccbf5f9217be922980d987781fad29737537e9918d31791911222b0b29e968a8b33d3a76ec72a35947ad940a72167c64d76c7e1645ca2b9d6a41fe2ea2cc7d8",
+                ),
+            )
+            conn.commit()
+        except Exception as e:
+            print("[DB SEED] lecturer:", repr(e))
+
         g.db = conn
 
         stabilize_connection = None
