@@ -1,0 +1,51 @@
+diff --git a/app/templates/admin_student_detail.html b/app/templates/admin_student_detail.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..38cf25bde9e82f47dbd2dab6f0f7092cd1b81d5a
+--- /dev/null
++++ b/app/templates/admin_student_detail.html
+@@ -0,0 +1,45 @@
++{% extends 'base.html' %}
++{% block title %}Student Detail · {{ stu['name'] if stu else '' }}{% endblock %}
++{% block content %}
++<h2>Student Detail</h2>
++{% if stu %}
++  <div class="card">
++    <p><strong>Name:</strong> {{ stu['name'] }}</p>
++    <p><strong>Email:</strong> {{ stu['email'] }}</p>
++    <p><strong>ID:</strong> {{ stu['student_id'] }}</p>
++  </div>
++
++  <h3>Latest Attempt Split</h3>
++  <ul class="concept-breakdown">
++    {% for row in split %}
++      <li><strong>{{ row['cat'] or '—' }}</strong>: {{ row['correct'] or 0 }}/{{ row['total'] or 0 }} ({{ row['pct'] or 0 }}%)</li>
++    {% else %}
++      <li class="muted">No attempt data available.</li>
++    {% endfor %}
++  </ul>
++
++  <h3>Attempt History</h3>
++  <table class="table">
++    <thead>
++      <tr><th>ID</th><th>Started</th><th>Finished</th><th>Score</th><th>Correct</th></tr>
++    </thead>
++    <tbody>
++      {% for a in attempts %}
++        <tr>
++          <td>{{ a['attempt_id'] }}</td>
++          <td>{{ a['started_at'] }}</td>
++          <td>{{ a['finished_at'] or '—' }}</td>
++          <td>{{ '%.1f'|format(a['score_pct'] or 0) }}%</td>
++          <td>{{ a['items_correct'] }}/{{ a['items_total'] }}</td>
++        </tr>
++      {% else %}
++        <tr><td colspan="5" class="muted">No attempts recorded.</td></tr>
++      {% endfor %}
++    </tbody>
++  </table>
++{% else %}
++  <p class="muted">Student not found.</p>
++{% endif %}
++
++<p><a class="btn" href="{{ url_for('admin_students') }}">Back to Students</a></p>
++{% endblock %}

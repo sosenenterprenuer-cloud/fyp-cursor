@@ -1,40 +1,88 @@
-{% extends 'base.html' %}
-{% from '_partials_learning.html' import flashcard, mcq %}
-{% block title %}Normalization & Dependencies{% endblock %}
-{% block content %}
-
-<h2>Normalization & Dependencies</h2>
-
-<section class="section">
-  <h3>Concept Summary</h3>
-  <p>Functional Dependencies (FDs) show how attributes determine each other (X→Y). Normalize to avoid anomalies: 1NF (atomic values), 2NF (no partial dependency on composite keys), 3NF (no transitive dependency between non-keys).</p>
-  </section>
-
-<section class="section">
-  <h3>Mini Example</h3>
-  <p><strong>Metaphor:</strong> Don’t pack many items into one pocket (1NF). Don’t rely on half a key (2NF). Don’t rely on a friend’s friend (3NF).</p>
-  <p><strong>Real:</strong> <code>Enrollment(StudentID, CourseID, Grade, CourseName)</code> PK=(StudentID,CourseID). CourseName depends on CourseID → partial dependency → move CourseName to <code>Course</code>. If Course has LecturerName via LecturerID = transitive → split to <code>Lecturer</code>.</p>
-</section>
-
-<section class="section">
-  <h3>Flashcards</h3>
-  <div class="cards">
-    {{ flashcard("FD meaning?", "X→Y: same X implies same Y.") }}
-    {{ flashcard("What is 1NF?", "Each attribute stores a single, atomic value.") }}
-    {{ flashcard("2NF vs 3NF?", "2NF removes partial deps; 3NF removes transitive deps.") }}
-  </div>
-</section>
-
-<section class="section" id="norm-quiz">
-  <h3>Quick Check</h3>
-  {{ mcq("norm_q1","Not 1NF example?","Phone='012-7890'","Phones=['012-7890','019-1111']","Split into Phone table","b") }}
-  {{ mcq("norm_q2","Partial dependency occurs when…","Non-key depends on entire key","Non-key depends on part of composite key","Non-key depends on another non-key","b") }}
-  {{ mcq("norm_q3","Transitive dependency is…","Key→Non-key directly","Non-key→Non-key chain","No dependency","b") }}
-  <p class="mcq-result"></p><p class="completion-badge"></p>
-  <button class="btn" onclick="gradeModule('norm-quiz','norm')">Check Answers</button>
-</section>
-
-{% endblock %}
-
-
-
+ (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
+diff --git a/app/templates/module_norm.html b/app/templates/module_norm.html
+index a0e6b85ed0996d2a40d05a5003d7ac3c966b4355..dce0f40ac0ea5863ad382fd82a354facb6a3bb5b 100644
+--- a/app/templates/module_norm.html
++++ b/app/templates/module_norm.html
+@@ -1,40 +1,39 @@
+-{% extends 'base.html' %}
+-{% from '_partials_learning.html' import flashcard, mcq %}
+-{% block title %}Normalization & Dependencies{% endblock %}
+-{% block content %}
+-
+-<h2>Normalization & Dependencies</h2>
+-
+-<section class="section">
+-  <h3>Concept Summary</h3>
+-  <p>Functional Dependencies (FDs) show how attributes determine each other (X→Y). Normalize to avoid anomalies: 1NF (atomic values), 2NF (no partial dependency on composite keys), 3NF (no transitive dependency between non-keys).</p>
+-  </section>
+-
+-<section class="section">
+-  <h3>Mini Example</h3>
+-  <p><strong>Metaphor:</strong> Don’t pack many items into one pocket (1NF). Don’t rely on half a key (2NF). Don’t rely on a friend’s friend (3NF).</p>
+-  <p><strong>Real:</strong> <code>Enrollment(StudentID, CourseID, Grade, CourseName)</code> PK=(StudentID,CourseID). CourseName depends on CourseID → partial dependency → move CourseName to <code>Course</code>. If Course has LecturerName via LecturerID = transitive → split to <code>Lecturer</code>.</p>
+-</section>
+-
+-<section class="section">
+-  <h3>Flashcards</h3>
+-  <div class="cards">
+-    {{ flashcard("FD meaning?", "X→Y: same X implies same Y.") }}
+-    {{ flashcard("What is 1NF?", "Each attribute stores a single, atomic value.") }}
+-    {{ flashcard("2NF vs 3NF?", "2NF removes partial deps; 3NF removes transitive deps.") }}
+-  </div>
+-</section>
+-
+-<section class="section" id="norm-quiz">
+-  <h3>Quick Check</h3>
+-  {{ mcq("norm_q1","Not 1NF example?","Phone='012-7890'","Phones=['012-7890','019-1111']","Split into Phone table","b") }}
+-  {{ mcq("norm_q2","Partial dependency occurs when…","Non-key depends on entire key","Non-key depends on part of composite key","Non-key depends on another non-key","b") }}
+-  {{ mcq("norm_q3","Transitive dependency is…","Key→Non-key directly","Non-key→Non-key chain","No dependency","b") }}
+-  <p class="mcq-result"></p><p class="completion-badge"></p>
+-  <button class="btn" onclick="gradeModule('norm-quiz','norm')">Check Answers</button>
+-</section>
+-
+-{% endblock %}
+-
+-
+-
++{% extends 'base.html' %}
++{% from '_partials_learning.html' import flashcard, mcq %}
++{% block title %}Normalization & Dependencies{% endblock %}
++{% block content %}
++<div class="hero">
++  <h2>Normalization &amp; Dependencies</h2>
++  <p>Refine your schema by eliminating anomalies and understanding how attributes depend on one another.</p>
++</div>
++
++<div class="module-wrapper">
++  <section class="card module-section">
++    <span class="pill" style="background:#eef2ff;color:#4f46e5">Chapter: Normalization</span>
++    <h2>Normalization</h2>
++    <p>Normalization organizes tables so that each fact lives in the right place. Progressing through normal forms removes redundant data, update anomalies, and inconsistent dependencies.</p>
++    <p>Use the normal forms to iteratively improve table design while keeping real-world usage in mind.</p>
++    <div class="flashcard-grid">
++      {{ flashcard("1NF Requirement", "Ensure atomic attribute values and a defined primary key.") }}
++      {{ flashcard("2NF Check", "Eliminate partial dependencies on a composite key by moving attributes to new tables.") }}
++      {{ flashcard("3NF Insight", "Attributes should depend only on the key, not on other non-key attributes.") }}
++    </div>
++  </section>
++
++  <section class="card module-section">
++    <span class="pill" style="background:#fffbeb;color:#92400e">Chapter: Dependencies</span>
++    <h2>Dependencies</h2>
++    <p>Functional dependencies capture how attributes determine one another. Mapping them clearly guides normalization steps and highlights when additional tables or keys are needed.</p>
++    <p>Practice reading and decomposing dependencies so the design stays flexible and accurate.</p>
++    <div class="card mini-quiz-card" id="norm-quiz">
++      <h3>3-Question Mini Check</h3>
++      {{ mcq("norm_q1","Functional dependencies describe…","Physical storage locations","Deterministic attribute relationships","SQL performance hints","b") }}
++      {{ mcq("norm_q2","A table violates 2NF when…","Attributes are atomic","Non-key attributes depend on only part of a composite key","It lacks a surrogate key","b") }}
++      {{ mcq("norm_q3","To reach 3NF you must…","Remove all rows","Ensure every non-key attribute depends only on the primary key","Switch to a document store","b") }}
++      <p class="mcq-result"></p>
++      <p class="completion-badge"></p>
++      <button class="btn" onclick="gradeModule('norm-quiz','norm')">Check Answers</button>
++    </div>
++  </section>
++</div>
++{% endblock %}
+ 
+EOF
+)

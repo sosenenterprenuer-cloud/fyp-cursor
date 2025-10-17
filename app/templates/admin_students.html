@@ -1,0 +1,31 @@
+diff --git a/app/templates/admin_students.html b/app/templates/admin_students.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..c4e91cb1b92d882f98f1c70ee4803f630a912f13
+--- /dev/null
++++ b/app/templates/admin_students.html
+@@ -0,0 +1,25 @@
++{% extends 'base.html' %}
++{% block title %}Lecturer · Students{% endblock %}
++{% block content %}
++<h2>Students</h2>
++<p class="muted">Browse student accounts and drill into their latest attempts.</p>
++
++<table class="table">
++  <thead>
++    <tr><th>ID</th><th>Name</th><th>Email</th><th>Attempts</th><th></th></tr>
++  </thead>
++  <tbody>
++    {% for s in students %}
++      <tr>
++        <td>{{ s['student_id'] }}</td>
++        <td>{{ s['name'] }}</td>
++        <td>{{ s['email'] }}</td>
++        <td>{{ s['attempts'] }}</td>
++        <td><a class="btn btn-small" href="{{ url_for('admin_student_detail', sid=s['student_id']) }}">View</a></td>
++      </tr>
++    {% else %}
++      <tr><td colspan="5" class="muted">No students found.</td></tr>
++    {% endfor %}
++  </tbody>
++</table>
++{% endblock %}

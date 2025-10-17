@@ -1,47 +1,112 @@
-{% extends 'base.html' %}
-{% block title %}End of Prototype{% endblock %}
-{% block content %}
-<h2>End of Prototype</h2>
-<p><strong>Loving the experience ? Let’s take a moment to appreciate the creator & his AI tools. If not, give one star.</strong></p>
-
-<div id="rating-box" class="card" style="padding:1rem;max-width:480px;">
-  <div id="stars" style="font-size:28px;cursor:pointer;">
-    <span data-val="1">☆</span>
-    <span data-val="2">☆</span>
-    <span data-val="3">☆</span>
-    <span data-val="4">☆</span>
-    <span data-val="5">☆</span>
-  </div>
-  <textarea id="comment" rows="3" style="width:100%;margin-top:.5rem;" placeholder="Optional comment..."></textarea>
-  <button id="submitRating" class="btn" style="margin-top:.5rem;">Submit</button>
-  <p id="statusMsg" class="muted" style="margin-top:.5rem;"></p>
-</div>
-
-<section class="card" style="padding:1rem;opacity:.6;margin-top:1rem;">
-  <h3>Next Recommendation</h3>
-  <p>This will appear in the full version.</p>
-  <button class="btn" disabled>Coming Soon</button>
-</section>
-
-<script>
-let picked = 0;
-const stars = document.querySelectorAll('#stars span');
-stars.forEach(s => {
-  s.addEventListener('mouseover', () => {
-    const v = parseInt(s.dataset.val);
-    stars.forEach(x => x.textContent = parseInt(x.dataset.val) <= v ? '★' : '☆');
-  });
-  s.addEventListener('click', () => { picked = parseInt(s.dataset.val); });
-});
-document.getElementById('submitRating').addEventListener('click', async () => {
-  const comment = document.getElementById('comment').value || '';
-  if (!picked) { document.getElementById('statusMsg').textContent = 'Please pick 1-5 stars.'; return; }
-  const res = await fetch('/api/feedback', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ rating: picked, comment })});
-  const data = await res.json();
-  document.getElementById('statusMsg').textContent = data.ok ? 'Thanks for the feedback!' : (data.error || 'Error');
-});
-</script>
-{% endblock %}
-
-
-
+ (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
+diff --git a/app/templates/thanks.html b/app/templates/thanks.html
+index 982fe4e88aaab2d5d877d5c77245197e668422c3..ef1b730c1d0decdc3ab9a17d22fcb378dc64966b 100644
+--- a/app/templates/thanks.html
++++ b/app/templates/thanks.html
+@@ -1,47 +1,74 @@
+ {% extends 'base.html' %}
+-{% block title %}End of Prototype{% endblock %}
+-{% block content %}
+-<h2>End of Prototype</h2>
+-<p><strong>Loving the experience ? Let’s take a moment to appreciate the creator & his AI tools. If not, give one star.</strong></p>
++{% block title %}Thanks{% endblock %}
++{% block content %}
++<h2>Give a Rating</h2>
++<p><strong>Loving the experience? Let’s take a moment to appreciate the creator & his AI tools. If not, give one star.</strong></p>
+ 
+ <div id="rating-box" class="card" style="padding:1rem;max-width:480px;">
+   <div id="stars" style="font-size:28px;cursor:pointer;">
+     <span data-val="1">☆</span>
+     <span data-val="2">☆</span>
+     <span data-val="3">☆</span>
+     <span data-val="4">☆</span>
+     <span data-val="5">☆</span>
+   </div>
+   <textarea id="comment" rows="3" style="width:100%;margin-top:.5rem;" placeholder="Optional comment..."></textarea>
+   <button id="submitRating" class="btn" style="margin-top:.5rem;">Submit</button>
+   <p id="statusMsg" class="muted" style="margin-top:.5rem;"></p>
+ </div>
+ 
+-<section class="card" style="padding:1rem;opacity:.6;margin-top:1rem;">
+-  <h3>Next Recommendation</h3>
+-  <p>This will appear in the full version.</p>
+-  <button class="btn" disabled>Coming Soon</button>
+-</section>
+-
+-<script>
+-let picked = 0;
+-const stars = document.querySelectorAll('#stars span');
+-stars.forEach(s => {
+-  s.addEventListener('mouseover', () => {
+-    const v = parseInt(s.dataset.val);
+-    stars.forEach(x => x.textContent = parseInt(x.dataset.val) <= v ? '★' : '☆');
+-  });
+-  s.addEventListener('click', () => { picked = parseInt(s.dataset.val); });
+-});
+-document.getElementById('submitRating').addEventListener('click', async () => {
+-  const comment = document.getElementById('comment').value || '';
+-  if (!picked) { document.getElementById('statusMsg').textContent = 'Please pick 1-5 stars.'; return; }
+-  const res = await fetch('/api/feedback', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ rating: picked, comment })});
+-  const data = await res.json();
+-  document.getElementById('statusMsg').textContent = data.ok ? 'Thanks for the feedback!' : (data.error || 'Error');
+-});
+-</script>
+-{% endblock %}
++<script>
++let picked = 0;
++const stars = document.querySelectorAll('#stars span');
++const attemptId = {{ session.get('last_attempt_id', 0) or 0 }};
++
++function paintStars(target) {
++  const v = parseInt(target.dataset.val || '0');
++  stars.forEach(x => {
++    x.textContent = parseInt(x.dataset.val) <= v ? '★' : '☆';
++  });
++}
++
++stars.forEach(s => {
++  s.addEventListener('mouseover', () => paintStars(s));
++  s.addEventListener('focus', () => paintStars(s));
++  s.addEventListener('click', () => {
++    picked = parseInt(s.dataset.val || '0');
++    paintStars(s);
++  });
++});
++
++async function submitFeedback(){
++  const status = document.getElementById('statusMsg');
++  const comment = document.getElementById('comment').value || '';
++  if (!picked) {
++    status.textContent = 'Please pick 1-5 stars.';
++    return;
++  }
++  try {
++    const res = await fetch('/api/feedback', {
++      method:'POST',
++      headers:{'Content-Type':'application/json'},
++      body: JSON.stringify({ rating: picked, comment })
++    });
++    const data = await res.json().catch(() => ({}));
++    if (res.ok && data.ok) {
++      if (attemptId) {
++        window.location = `/review/${attemptId}?feedback=1`;
++      } else {
++        window.location = `/student/{{ session.student_id }}?feedback=1`;
++      }
++    } else {
++      status.textContent = (data && data.error) ? data.error : 'Failed to submit feedback.';
++    }
++  } catch (err) {
++    status.textContent = 'Unable to submit feedback right now.';
++  }
++}
++
++document.getElementById('submitRating').addEventListener('click', submitFeedback);
++</script>
++{% endblock %}
+ 
+ 
+ 
+ 
+EOF
+)

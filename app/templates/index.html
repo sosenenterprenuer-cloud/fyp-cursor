@@ -1,13 +1,20 @@
-{% extends 'base.html' %}
-{% block title %}Home - PLA Quiz{% endblock %}
-{% block content %}
-<section class="hero">
-  <h1>Database Normalization Practice</h1>
-  <p>Master Functional Dependencies, 1NF, 2NF, and 3NF with quick quizzes.</p>
-  {% if session.get('student_id') %}
-    <a class="btn" href="{{ url_for('quiz') }}">Start New Quiz</a>
-  {% else %}
-    <a class="btn" href="{{ url_for('login') }}">Login to Start</a>
-  {% endif %}
-</section>
-{% endblock %}
+diff --git a/app/templates/index.html b/app/templates/index.html
+index c441acd25d84e518c27c7d4be9ac98100092376e..6be3a168e4117d0c07a6b211d5cd662be70b723c 100644
+--- a/app/templates/index.html
++++ b/app/templates/index.html
+@@ -1,13 +1,13 @@
+ {% extends 'base.html' %}
+ {% block title %}Home - PLA Quiz{% endblock %}
+ {% block content %}
+ <section class="hero">
+-  <h1>Database Normalization Practice</h1>
+-  <p>Master Functional Dependencies, 1NF, 2NF, and 3NF with quick quizzes.</p>
++  <h1>Database Mastery Practice</h1>
++  <p>Strengthen your skills in Data Modeling &amp; DBMS Fundamentals and Normalization &amp; Dependencies with quick quizzes.</p>
+   {% if session.get('student_id') %}
+     <a class="btn" href="{{ url_for('quiz') }}">Start New Quiz</a>
+   {% else %}
+     <a class="btn" href="{{ url_for('login') }}">Login to Start</a>
+   {% endif %}
+ </section>
+ {% endblock %}
