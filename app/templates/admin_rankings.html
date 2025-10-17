@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Rankings · Personalized Learning Recommendation AI{% endblock %}
+{% block content %}
+  <section class="card">
+    <h2>Student leaderboard</h2>
+    {% if leaderboard %}
+      <table class="table">
+        <thead><tr><th>Student</th><th>Email</th><th>Attempts</th><th>Average %</th><th>Best %</th><th>Last %</th></tr></thead>
+        <tbody>
+          {% for row in leaderboard %}
+            <tr>
+              <td>{{ row['name'] }}</td>
+              <td>{{ row['email'] }}</td>
+              <td>{{ row['attempts'] }}</td>
+              <td>{{ row['average_score']|round(2) }}</td>
+              <td>{{ row['best_score']|round(2) }}</td>
+              <td>{{ row['last_score']|round(2) }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="muted">No completed attempts yet.</p>
+    {% endif %}
+  </section>
+{% endblock %}

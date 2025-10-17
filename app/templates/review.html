@@ -1,58 +1,48 @@
- (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
-diff --git a/app/templates/review.html b/app/templates/review.html
-new file mode 100644
-index 0000000000000000000000000000000000000000..9cda5c9653f37e3b37acfdec2833b8dd8a419155
---- /dev/null
-+++ b/app/templates/review.html
-@@ -0,0 +1,48 @@
-+{% extends 'base.html' %}
-+{% block title %}Review Attempt #{{ attempt['attempt_id'] }}{% endblock %}
-+{% block content %}
-+
-+<h2>Attempt Review</h2>
-+<p>
-+  Score: <strong>{{ attempt['items_correct'] }}/{{ attempt['items_total'] }}</strong>
-+  ({{ attempt['score_pct'] }}%) · Started: {{ attempt['started_at'] }} · Source: {{ attempt['source'] }}
-+</p>
-+
-+<div class="cards">
-+  <div class="card">
-+    <h3>Recent Attempt Split</h3>
-+    <ul>
-+      <li><strong>Data Modeling &amp; DBMS Fundamentals</strong>: {{ fund_pct }}%</li>
-+      <li><strong>Normalization &amp; Dependencies</strong>: {{ norm_pct }}%</li>
-+    </ul>
-+    {% if unlocked_next %}
-+      <div class="notice success">✅ Perfect in both topics! Next recommendation: <strong>{{ next_topic_name }}</strong></div>
-+      <p><a class="btn primary" href="/thanks">Give a rating</a></p>
-+    {% else %}
-+      <div class="notice warn">🔒 Get 100% in both topics (this recent quiz) to proceed.</div>
-+    {% endif %}
-+    {% if request.args.get('feedback') %}
-+      <div class="notice success">⭐ Feedback has been submitted. Thank you!</div>
-+    {% endif %}
-+  </div>
-+</div>
-+
-+<h3>Question-by-question</h3>
-+<ol class="qa-list">
-+  {% for it in items %}
-+    <li class="card">
-+      <div><strong>Q{{ it['quiz_id'] }}</strong> · <em>{{ it['two_category'] or '—' }}</em></div>
-+      <p class="q">{{ it['question'] }}</p>
-+      <p class="{{ 'good' if it['is_correct'] else 'bad' }}">
-+        Your answer: <strong>{{ it['your_answer'] or '(blank)' }}</strong>
-+        {% if not it['is_correct'] %} · Correct: <strong>{{ it['correct_answer'] }}</strong>{% endif %}
-+      </p>
-+      {% if not it['is_correct'] and it['explanation'] %}
-+        <details><summary>Why?</summary><p>{{ it['explanation'] }}</p></details>
-+      {% endif %}
-+    </li>
-+  {% endfor %}
-+</ol>
-+
-+<p><a class="btn" href="/student/{{ session.student_id }}">Back to Dashboard</a></p>
-+{% endblock %}
- 
-EOF
-)
+{% extends "base.html" %}
+{% block title %}Attempt Review · Personalized Learning Recommendation AI{% endblock %}
+{% block content %}
+  <section class="card">
+    <h2>Attempt Summary</h2>
+    <p>Completed on <strong>{{ attempt['finished_at'] or attempt['started_at'] }}</strong></p>
+    <p><strong>Score:</strong> {{ attempt['score_pct']|default(0) }}%</p>
+    {% if feedback_flag %}
+      <div class="notice success">Feedback has been submitted.</div>
+    {% endif %}
+    <div class="topic-grid">
+      {% for topic, pct in per_topic_pct.items() %}
+        <div class="topic-card">
+          <h3>{{ topic }}</h3>
+          <p>{{ pct }}%</p>
+        </div>
+      {% endfor %}
+    </div>
+    <h3>Lifetime best</h3>
+    <ul>
+      {% for topic, pct in best_by_topic.items() %}
+        <li>{{ topic }}: {{ pct }}%</li>
+      {% endfor %}
+    </ul>
+    {% if unlocked %}
+      <div class="notice success">Great work! You unlocked the next recommendation: Database Development Process.</div>
+    {% endif %}
+    <p><a class="btn" href="{{ url_for('dashboard') }}">Back to dashboard</a></p>
+  </section>
+
+  <section class="card">
+    <h2>Question Review</h2>
+    <ol class="review-list">
+      {% for item in responses %}
+        <li class="review-item {% if not item.score %}incorrect{% endif %}">
+          <h3>{{ item.question }}</h3>
+          <p><strong>Your answer:</strong> {{ item.answer or 'No answer provided' }}</p>
+          {% if not item.score %}
+            <p><strong>Correct answer:</strong> {{ item.correct_answer }}</p>
+          {% endif %}
+          <p class="muted">{{ item.explanation }}</p>
+          <p class="tag">Topic: {{ item.topic }}</p>
+        </li>
+      {% endfor %}
+    </ol>
+    <p class="muted">Need to share feedback? <a href="{{ url_for('thanks') }}">Rate this experience</a>.</p>
+  </section>
+{% endblock %}

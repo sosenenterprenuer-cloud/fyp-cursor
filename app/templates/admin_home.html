@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard · Personalized Learning Recommendation AI{% endblock %}
+{% block content %}
+  <div class="dashboard-header">
+    <h2>Lecturer Dashboard</h2>
+    <p class="muted">Monitor student engagement, spot abandoned attempts, and jump into deeper analytics.</p>
+  </div>
+
+  <div class="overview-cards">
+    <div class="metric-card">
+      <h3>Students</h3>
+      <p class="metric-value">{{ counts.students }}</p>
+    </div>
+    <div class="metric-card">
+      <h3>Attempts</h3>
+      <p class="metric-value">{{ counts.attempts }}</p>
+    </div>
+    <div class="metric-card">
+      <h3>Responses</h3>
+      <p class="metric-value">{{ counts.responses }}</p>
+    </div>
+    <div class="metric-card">
+      <h3>Attempts w/ Responses</h3>
+      <p class="metric-value">{{ counts.attempts_with_responses }}</p>
+    </div>
+  </div>
+
+  {% if abandoned_attempts %}
+    <div class="notice warn">{{ abandoned_attempts }} attempts have no responses. These may indicate students who quit early.</div>
+  {% endif %}
+
+  <section class="card">
+    <h3>Accuracy by Concept</h3>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Topic</th>
+          <th>Correct %</th>
+          <th>Responses</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in accuracy %}
+          <tr>
+            <td>{{ row.topic }}</td>
+            <td>{{ '%.1f'|format(row.pct) }}%</td>
+            <td>{{ row.total }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="3" class="muted">No responses collected yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <h3>Attempts (Last 14 Days)</h3>
+    <div class="chart-container">
+      <canvas id="attempt-chart" height="160"></canvas>
+    </div>
+  </section>
+
+  <section class="card">
+    <h3>Quick Links</h3>
+    <div class="actions">
+      <a class="btn primary" href="{{ url_for('admin_analytics') }}">Analytics</a>
+      <a class="btn" href="{{ url_for('admin_rankings') }}">Rankings</a>
+      <a class="btn" href="{{ url_for('admin_questions') }}">Question bank</a>
+    </div>
+  </section>
+
+  <script>
+    const adminCtx = document.getElementById('attempt-chart');
+    if (adminCtx) {
+      new Chart(adminCtx, {
+        type: 'line',
+        data: {
+          labels: {{ day_labels|tojson }},
+          datasets: [
+            {
+              label: 'Attempts',
+              data: {{ attempts_per_day|tojson }},
+              borderColor: '#2563eb',
+              backgroundColor: 'rgba(37, 99, 235, 0.15)',
+              fill: true,
+              tension: 0.3
+            },
+            {
+              label: 'Attempts with responses',
+              data: {{ attempted_with_responses|tojson }},
+              borderColor: '#0f172a',
+              backgroundColor: 'rgba(15, 23, 42, 0.12)',
+              fill: true,
+              tension: 0.3
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: 'bottom' }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { precision: 0 }
+            }
+          }
+        }
+      });
+    }
+  </script>
+{% endblock %}
