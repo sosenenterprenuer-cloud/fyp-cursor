@@ -1,48 +1,155 @@
-{% extends 'base.html' %}
-{% block title %}Quiz{% endblock %}
+{% extends "base.html" %}
+{% block title %}Quiz · Personalized Learning Recommendation AI{% endblock %}
 {% block content %}
-<div class="quiz-container">
-  <div id="quiz-root">
-    <div class="quiz-loading">
-      <h2>Loading Quiz...</h2>
-      <p>Preparing your quiz questions...</p>
+  <section class="card" id="quiz-app">
+    <h2>30-Question Assessment</h2>
+    <div id="quiz-status" class="muted"></div>
+    <div id="question-area"></div>
+    <div class="quiz-controls">
+      <button type="button" class="btn" id="prev-btn">Back</button>
+      <button type="button" class="btn" id="next-btn">Next</button>
+      <button type="button" class="btn primary" id="submit-btn">Submit attempt</button>
     </div>
-  </div>
-</div>
+    <div class="notice warn" id="blank-warning" hidden>Some questions are unanswered. You can still submit; blanks count as incorrect.</div>
+    <div class="notice warn" id="error-box" hidden></div>
+  </section>
+  <script>
+    const state = {
+      data: null,
+      index: 0,
+      answers: {},
+      viewStarted: null,
+    };
 
-<!-- Result Modal -->
-<div id="result-modal" class="modal" style="display: none;">
-  <div class="modal-content">
-    <div class="result-header">
-      <h2>Quiz Complete!</h2>
-    </div>
-    
-    <div class="result-score">
-      <div class="score-circle">
-        <span id="result-percentage">0%</span>
-      </div>
-      <p id="result-message">Loading...</p>
-    </div>
-    
-    <div class="result-actions">
-      <button id="retake-btn" class="btn btn-primary" style="display: none;">
-        Retake Quiz
-      </button>
-      <button id="next-topic-btn" class="btn btn-secondary" style="display: none;">
-        Continue to Next Topic
-      </button>
-    </div>
-    
-    <div class="result-feedback">
-      <h3>Question Feedback</h3>
-      <div id="feedback-list"></div>
-    </div>
-    
-    <div class="result-close">
-      <button id="close-result" class="btn btn-outline">Close</button>
-    </div>
-  </div>
-</div>
+    function updateStatus() {
+      if (!state.data) return;
+      const current = state.index + 1;
+      const total = state.data.total_questions;
+      document.getElementById('quiz-status').textContent = `Question ${current} of ${total}`;
+      document.getElementById('prev-btn').disabled = state.index === 0;
+      document.getElementById('next-btn').disabled = state.index >= total - 1;
+    }
 
-<script src="{{ url_for('static', filename='js/quiz.js') }}"></script>
+    function persistTime() {
+      if (!state.data) return;
+      const question = state.data.questions[state.index];
+      const elapsed = state.viewStarted ? (performance.now() - state.viewStarted) / 1000 : 0;
+      if (!state.answers[question.quiz_id]) {
+        state.answers[question.quiz_id] = { selected: null, time: 0 };
+      }
+      state.answers[question.quiz_id].time += elapsed;
+      state.viewStarted = performance.now();
+    }
+
+    function renderQuestion() {
+      if (!state.data) return;
+      const container = document.getElementById('question-area');
+      container.innerHTML = '';
+      const question = state.data.questions[state.index];
+      const wrapper = document.createElement('div');
+      wrapper.className = 'question-block';
+      const prompt = document.createElement('h3');
+      prompt.textContent = question.question;
+      wrapper.appendChild(prompt);
+      const optionsList = document.createElement('div');
+      optionsList.className = 'options-list';
+      const stored = state.answers[question.quiz_id] || { selected: null };
+      question.options.forEach(option => {
+        const label = document.createElement('label');
+        label.className = 'option-item';
+        const input = document.createElement('input');
+        input.type = 'radio';
+        input.name = 'answer';
+        input.value = option.key;
+        if (stored.selected === option.key) {
+          input.checked = true;
+        }
+        input.addEventListener('change', () => {
+          if (!state.answers[question.quiz_id]) {
+            state.answers[question.quiz_id] = { selected: null, time: 0 };
+          }
+          state.answers[question.quiz_id].selected = option.key;
+        });
+        const span = document.createElement('span');
+        span.textContent = `${option.key}. ${option.text}`;
+        label.appendChild(input);
+        label.appendChild(span);
+        optionsList.appendChild(label);
+      });
+      wrapper.appendChild(optionsList);
+      container.appendChild(wrapper);
+      state.viewStarted = performance.now();
+      updateStatus();
+    }
+
+    function go(delta) {
+      persistTime();
+      const nextIndex = state.index + delta;
+      if (nextIndex < 0 || nextIndex >= state.data.total_questions) return;
+      state.index = nextIndex;
+      renderQuestion();
+    }
+
+    async function loadQuiz() {
+      try {
+        const response = await fetch('{{ url_for('api_quiz_progressive') }}');
+        if (!response.ok) throw new Error('Failed to load quiz.');
+        state.data = await response.json();
+        state.index = 0;
+        state.answers = {};
+        renderQuestion();
+      } catch (error) {
+        const box = document.getElementById('error-box');
+        box.hidden = false;
+        box.textContent = error.message;
+        document.querySelector('.quiz-controls').classList.add('disabled');
+      }
+    }
+
+    async function submitAttempt() {
+      if (!state.data) return;
+      persistTime();
+      const unanswered = state.data.questions.filter(q => !state.answers[q.quiz_id] || !state.answers[q.quiz_id].selected);
+      const warning = document.getElementById('blank-warning');
+      warning.hidden = unanswered.length === 0;
+      const payload = { answers: {} };
+      Object.entries(state.answers).forEach(([quizId, details]) => {
+        payload.answers[quizId] = {
+          selected: details.selected,
+          time: Math.max(0, Number(details.time || 0))
+        };
+      });
+      // Ensure blanks are tracked
+      state.data.questions.forEach(q => {
+        if (!payload.answers[q.quiz_id]) {
+          payload.answers[q.quiz_id] = { selected: null, time: 0 };
+        }
+      });
+      try {
+        const response = await fetch('{{ url_for('submit_quiz') }}', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({ error: 'Submission failed.' }));
+          throw new Error(data.error || 'Submission failed.');
+        }
+        const data = await response.json();
+        if (data.redirect_url) {
+          window.location.href = data.redirect_url;
+        }
+      } catch (error) {
+        const box = document.getElementById('error-box');
+        box.hidden = false;
+        box.textContent = error.message;
+      }
+    }
+
+    document.getElementById('prev-btn').addEventListener('click', () => go(-1));
+    document.getElementById('next-btn').addEventListener('click', () => go(1));
+    document.getElementById('submit-btn').addEventListener('click', submitAttempt);
+
+    loadQuiz();
+  </script>
 {% endblock %}

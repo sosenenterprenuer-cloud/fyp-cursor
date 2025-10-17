@@ -1,31 +1,21 @@
-diff --git a/app/templates/admin_questions.html b/app/templates/admin_questions.html
-new file mode 100644
-index 0000000000000000000000000000000000000000..4f7b89124f638f4ec4aea874d1b4f44bb8b126ce
---- /dev/null
-+++ b/app/templates/admin_questions.html
-@@ -0,0 +1,25 @@
-+{% extends 'base.html' %}
-+{% block title %}Lecturer · Questions{% endblock %}
-+{% block content %}
-+<h2>Question Bank Performance</h2>
-+<p class="muted">Track how each question performs across all attempts.</p>
-+
-+<table class="table">
-+  <thead>
-+    <tr><th>ID</th><th>Concept</th><th>Question</th><th>Correct %</th><th>Responses</th></tr>
-+  </thead>
-+  <tbody>
-+    {% for q in qs %}
-+      <tr>
-+        <td>{{ q['quiz_id'] }}</td>
-+        <td>{{ q['two_category'] or '—' }}</td>
-+        <td class="question-text">{{ q['question'] }}</td>
-+        <td>{{ q['correct_rate'] or 0 }}%</td>
-+        <td>{{ q['n'] }}</td>
-+      </tr>
-+    {% else %}
-+      <tr><td colspan="5" class="muted">No questions available.</td></tr>
-+    {% endfor %}
-+  </tbody>
-+</table>
-+{% endblock %}
+{% extends "base.html" %}
+{% block title %}Questions · Personalized Learning Recommendation AI{% endblock %}
+{% block content %}
+  <section class="card">
+    <h2>Question bank</h2>
+    <table class="table">
+      <thead><tr><th>ID</th><th>Question</th><th>Topic</th><th>Responses</th><th>Correct %</th></tr></thead>
+      <tbody>
+        {% for row in questions %}
+          <tr>
+            <td>{{ row.quiz_id }}</td>
+            <td>{{ row.question }}</td>
+            <td>{{ row.topic }}</td>
+            <td>{{ row.responses }}</td>
+            <td>{{ row.correct_pct }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}

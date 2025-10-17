@@ -1,0 +1,18 @@
+Timestamp,First Name,Last Name,Points - Which attribute uniquely identifies each record in an entity?,Points - What does an Entity-Relationship diagram primarily describe?,Points - Which relationship type allows multiple instances on both sides?,"Points - In a logical data model, what does cardinality express?",Points - Which key enforces referential integrity between related tables?,Points - What is the main deliverable of conceptual data modeling?,Points - Which type of attribute can be broken down into smaller attributes?,"Points - When translating an ER diagram to tables, what becomes a foreign key?",Points - Which constraint ensures that no duplicate rows exist for a key?,Points - What is the purpose of a surrogate key?,Points - Which phase of database design maps entities to specific columns and data types?,Points - What does the term 'schema' refer to in a database context?,Points - Which component of a relational table defines the type of data stored?,Points - Which modeling technique is most associated with relational databases?,Points - Which term describes rules about how data can be inserted or updated?,Points - What is the primary goal of normalization?,Points - Which normal form removes repeating groups?,Points - A partial dependency violates which normal form?,Points - What is a transitive dependency?,Points - Which normal form eliminates transitive dependencies?,Points - Boyce-Codd normal form is stricter than which normal form?,Points - Which anomaly is prevented by normalization?,Points - What does 4NF specifically address?,Points - Which dependency requires decomposition for BCNF compliance?,Points - What is the result of over-normalization?,Points - Which functional dependency notation is correct?,Points - Which normal form requires every non-trivial functional dependency to have a superkey determinant?,Points - What does lossless decomposition ensure?,Points - Which test determines if a decomposition is dependency preserving?,"Points - In normalization, what is the attribute set on the left of an FD called?"
+2025-10-17T18:17:57,Alice,Ng,1,0,1,1,1,0,1,0,1,0,1,1,1,1,0,0,1,0,1,1,1,1,1,0,1,0,1,1,0,0
+2025-10-16T18:17:57,Brian,Tan,1,1,1,1,1,1,1,1,1,1,0,0,1,1,1,1,1,1,0,0,1,0,0,1,0,1,0,1,1,1
+2025-10-15T18:17:57,Charlotte,Lim,0,1,0,0,0,1,0,1,0,1,1,1,0,0,1,1,0,1,1,1,0,1,1,1,1,1,1,0,1,1
+2025-10-14T18:17:57,Daniel,Koh,1,0,1,1,1,0,1,0,1,0,1,1,1,1,0,0,1,0,1,1,1,1,1,0,1,0,1,1,0,0
+2025-10-13T18:17:57,Elena,Chong,1,1,1,1,1,1,1,1,1,1,0,0,1,1,1,1,1,1,0,0,1,0,0,1,0,1,0,1,1,1
+2025-10-12T18:17:57,Faisal,Rahman,0,1,0,0,0,1,0,1,0,1,1,1,0,0,1,1,0,1,1,1,0,1,1,1,1,1,1,0,1,1
+2025-10-11T18:17:57,Grace,Lee,1,0,1,1,1,0,1,0,1,0,1,1,1,1,0,0,1,0,1,1,1,1,1,0,1,0,1,1,0,0
+2025-10-10T18:17:57,Hannah,Wong,1,1,1,1,1,1,1,1,1,1,0,0,1,1,1,1,1,1,0,0,1,0,0,1,0,1,0,1,1,1
+2025-10-09T18:17:57,Ivan,Goh,0,1,0,0,0,1,0,1,0,1,1,1,0,0,1,1,0,1,1,1,0,1,1,1,1,1,1,0,1,1
+2025-10-08T18:17:57,Jasmine,Teo,1,0,1,1,1,0,1,0,1,0,1,1,1,1,0,0,1,0,1,1,1,1,1,0,1,0,1,1,0,0
+2025-10-07T18:17:57,Kenneth,Yap,1,1,1,1,1,1,1,1,1,1,0,0,1,1,1,1,1,1,0,0,1,0,0,1,0,1,0,1,1,1
+2025-10-06T18:17:57,Lena,Low,0,1,0,0,0,1,0,1,0,1,1,1,0,0,1,1,0,1,1,1,0,1,1,1,1,1,1,0,1,1
+2025-10-05T18:17:57,Marcus,Nguyen,1,0,1,1,1,0,1,0,1,0,1,1,1,1,0,0,1,0,1,1,1,1,1,0,1,0,1,1,0,0
+2025-10-04T18:17:57,Natalie,Tanaka,1,1,1,1,1,1,1,1,1,1,0,0,1,1,1,1,1,1,0,0,1,0,0,1,0,1,0,1,1,1
+2025-10-03T18:17:57,Omar,Ali,0,1,0,0,0,1,0,1,0,1,1,1,0,0,1,1,0,1,1,1,0,1,1,1,1,1,1,0,1,1
+2025-10-02T18:17:57,Priya,Das,1,0,1,1,1,0,1,0,1,0,1,1,1,1,0,0,1,0,1,1,1,1,1,0,1,0,1,1,0,0
+2025-10-01T18:17:57,Quinn,Lim,1,1,1,1,1,1,1,1,1,1,0,0,1,1,1,1,1,1,0,0,1,0,0,1,0,1,0,1,1,1

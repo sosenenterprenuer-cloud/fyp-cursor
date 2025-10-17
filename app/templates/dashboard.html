@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Student Dashboard · Personalized Learning Recommendation AI{% endblock %}
+{% block content %}
+  <div class="dashboard-header">
+    <h2>Student Dashboard</h2>
+    <p class="muted">Track your mastery across the two database concepts and monitor every quiz attempt.</p>
+  </div>
+
+  <div class="dashboard-grid">
+    <div class="dashboard-card">
+      <h3>Latest Attempt</h3>
+      {% if latest_attempt %}
+        <p class="score-emphasis">{{ '%.1f'|format(latest_attempt['score_pct'] or 0) }}%</p>
+        <p class="muted">Completed on {{ latest_attempt['finished_at'] or latest_attempt['started_at'] }}</p>
+        <a class="btn primary" href="{{ url_for('review', attempt_id=latest_attempt['attempt_id']) }}">Review attempt</a>
+        <a class="btn" href="{{ url_for('quiz') }}">Retake quiz</a>
+      {% else %}
+        <p class="muted">No attempts yet. Start the assessment to unlock your personalised insights.</p>
+        <a class="btn primary" href="{{ url_for('quiz') }}">Start first quiz</a>
+      {% endif %}
+    </div>
+
+    <div class="dashboard-card">
+      <h3>Progression Status</h3>
+      {% if unlocked %}
+        <div class="notice success">
+          ✅ Lifetime best shows perfection in both concepts. Next recommendation: <strong>{{ next_topic_name }}</strong>.
+        </div>
+        <a class="btn primary" href="{{ url_for('thanks') }}">Go to feedback</a>
+      {% else %}
+        <div class="notice warn">
+          🔒 Unlock the next topic by achieving 100% in both "Data Modeling &amp; DBMS Fundamentals" and "Normalization &amp; Dependencies".
+        </div>
+        <p class="muted">Your lifetime best scores:</p>
+        <ul class="best-list">
+          {% for topic, pct in best_by_topic.items() %}
+            <li><strong>{{ topic }}</strong>: {{ '%.1f'|format(pct) }}%</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+  </div>
+
+  <section class="card mastery-card">
+    <h3>Concept Mastery</h3>
+    {% if latest_topic_breakdown %}
+      <p class="muted">Breakdown for your most recent attempt.</p>
+      <div class="mastery-grid">
+        {% for item in latest_topic_breakdown %}
+          <div class="mastery-item">
+            <div class="mastery-header">
+              <h4>{{ item.topic or 'Unassigned' }}</h4>
+              <span>{{ item.correct }}/{{ item.total }}</span>
+            </div>
+            <div class="progress"><span style="width: {{ item.pct }}%"></span></div>
+            <p>{{ '%.1f'|format(item.pct) }}% accuracy</p>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="muted">Once you complete an attempt, concept mastery will appear here.</p>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h3>Progress Over Time</h3>
+    {% if attempt_count %}
+      <div class="chart-container">
+        <canvas id="scoreChart" height="160"></canvas>
+      </div>
+    {% else %}
+      <p class="muted">Take the quiz to start building your trend line.</p>
+    {% endif %}
+  </section>
+
+  <section class="card">
+    <h3>Attempt History</h3>
+    {% if history %}
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Completed</th>
+            <th>Score %</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in history %}
+            <tr>
+              <td>{{ row['finished_at'] or row['started_at'] }}</td>
+              <td>{{ '%.1f'|format(row['score_pct'] or 0) }}</td>
+              <td><a href="{{ url_for('review', attempt_id=row['attempt_id']) }}">Review</a></td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="muted">No attempts recorded yet.</p>
+    {% endif %}
+  </section>
+
+  <script>
+    {% if attempt_count %}
+    const chartCtx = document.getElementById('scoreChart');
+    if (chartCtx) {
+      new Chart(chartCtx, {
+        type: 'line',
+        data: {
+          labels: {{ chart_labels|tojson }},
+          datasets: [{
+            label: 'Score %',
+            data: {{ chart_scores|tojson }},
+            borderColor: '#2563eb',
+            backgroundColor: 'rgba(37, 99, 235, 0.15)',
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: { beginAtZero: true, max: 100 }
+          }
+        }
+      });
+    }
+    {% endif %}
+  </script>
+{% endblock %}
