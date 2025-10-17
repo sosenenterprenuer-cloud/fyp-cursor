@@ -5,10 +5,19 @@ Imports questions from questions.xlsx and student history from history.xlsx.
 
 import argparse
 import json
+import os
 import sqlite3
-import pandas as pd
+import sys
 from datetime import datetime
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
+
+import pandas as pd
+
+if __package__:
+    from .db_utils import DEFAULT_DB_RELATIVE, ensure_db_path
+else:
+    sys.path.insert(0, os.path.dirname(__file__))
+    from db_utils import DEFAULT_DB_RELATIVE, ensure_db_path
 
 
 def import_questions(db_path: str, questions_file: str) -> None:
@@ -205,18 +214,22 @@ def import_history(db_path: str, history_file: str) -> None:
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(description="Import Excel data into PLA database")
-    parser.add_argument("--db", default="pla.db", help="Database file path")
+    parser.add_argument(
+        "--db",
+        default=str(DEFAULT_DB_RELATIVE),
+        help="Database file path",
+    )
     parser.add_argument("--questions", help="Questions Excel file path")
     parser.add_argument("--history", help="History Excel file path")
-    
+
     args = parser.parse_args()
-    
+
     try:
         if args.questions:
-            import_questions(args.db, args.questions)
-        
+            import_questions(str(ensure_db_path(args.db)), args.questions)
+
         if args.history:
-            import_history(args.db, args.history)
+            import_history(str(ensure_db_path(args.db)), args.history)
             
         print("Import completed successfully!")
         

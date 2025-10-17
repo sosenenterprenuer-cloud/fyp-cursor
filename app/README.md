@@ -51,7 +51,7 @@ cp .env.example .env
 
 # Edit .env file with your settings
 # FLASK_SECRET=your-secret-key-here
-# PLA_DB=pla.db
+# PLA_DB=instance/pla.db
 # DEBUG=True
 ```
 
@@ -62,8 +62,10 @@ cp .env.example .env
 python -c "
 import os
 import sqlite3
-db_path = os.getenv('PLA_DB', 'pla.db')
-conn = sqlite3.connect(db_path)
+from db_utils import ensure_db_path
+
+db_path = ensure_db_path(os.getenv('PLA_DB'))
+conn = sqlite3.connect(str(db_path))
 conn.executescript(open('schema.sql').read())
 conn.executescript(open('seed.sql').read())
 conn.close()
@@ -75,13 +77,13 @@ print('Database initialized successfully')
 
 ```bash
 # Import questions from Excel
-python import_excel.py --db pla.db --questions questions.xlsx
+python import_excel.py --db instance/pla.db --questions questions.xlsx
 
 # Import student history from Excel
-python import_excel.py --db pla.db --history history.xlsx
+python import_excel.py --db instance/pla.db --history history.xlsx
 
 # Import both
-python import_excel.py --db pla.db --questions questions.xlsx --history history.xlsx
+python import_excel.py --db instance/pla.db --questions questions.xlsx --history history.xlsx
 ```
 
 ### 5. Run Application

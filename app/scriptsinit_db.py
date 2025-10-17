@@ -1,6 +1,15 @@
-import os, sqlite3, io
+import io
+import os
+import sqlite3
+import sys
 
-db_path = os.getenv('PLA_DB', 'pla.db')
+if __package__:
+    from .db_utils import ensure_db_path
+else:
+    sys.path.insert(0, os.path.dirname(__file__))
+    from db_utils import ensure_db_path
+
+db_path = str(ensure_db_path(os.getenv('PLA_DB')))
 print(f"Initializing DB at: {os.path.abspath(db_path)}")
 
 with sqlite3.connect(db_path) as conn:

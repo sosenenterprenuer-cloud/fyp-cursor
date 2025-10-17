@@ -1,6 +1,17 @@
-import csv, json, os, sqlite3, sys
+import csv
+import json
+import os
+import sqlite3
+import sys
+
+if __package__:
+    from .db_utils import ensure_db_path
+else:
+    sys.path.insert(0, os.path.dirname(__file__))
+    from db_utils import ensure_db_path
+
 REQ = ["q_no","question","options_text","correct_answer","nf_level","concept_tag","explanation","two_category"]
-DB = os.getenv("PLA_DB","pla.db")
+DB = str(ensure_db_path(os.getenv("PLA_DB")))
 def fail(m): print("[ERROR]", m); sys.exit(1)
 
 if len(sys.argv)!=2: fail("Usage: python scripts/import_questions.py quiz.csv")
