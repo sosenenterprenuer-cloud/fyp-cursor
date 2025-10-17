@@ -1,102 +1,61 @@
-"""Test dashboard views and functionality."""
-
-import pytest
+"""Student dashboard view tests updated for simplified mastery flow."""
 
 
-def test_student_dashboard_renders_200(logged_in_client):
-    """Test that student dashboard renders successfully."""
+def test_student_dashboard_renders(logged_in_client):
     response = logged_in_client.get('/student/1')
     assert response.status_code == 200
-    
+
     html = response.get_data(as_text=True)
     assert 'Student Dashboard' in html
-    assert 'Recent Score' in html
-    assert 'Next Step' in html
-    assert 'Concept Mastery' in html
+    assert 'Progression Status' in html
+    assert 'Concept Path to Mastery' in html
 
 
-def test_dashboard_shows_reattempt_button(logged_in_client):
-    """Test that dashboard shows Reattempt button."""
+def test_dashboard_shows_action_buttons(logged_in_client):
     response = logged_in_client.get('/student/1')
     assert response.status_code == 200
-    
+
     html = response.get_data(as_text=True)
-    # Should contain reattempt button
-    assert 'Reattempt Quiz' in html
-    assert '/reattempt' in html
+    # Should contain links to retake and module pages
+    assert 'Retake Quiz' in html or 'Start Quiz' in html
+    assert '/module/fundamentals' in html
+    assert '/module/norm' in html
 
 
-def test_dashboard_no_time_display(logged_in_client):
-    """Test that dashboard does not show time strings in student view."""
+def test_dashboard_displays_lock_message_until_perfect(logged_in_client):
     response = logged_in_client.get('/student/1')
     assert response.status_code == 200
-    
+
     html = response.get_data(as_text=True)
-    # Should not contain time-related strings in the main view (but allow in CSS/JS)
-    # Check that time-related content is not displayed in the main content area
-    assert 'response_time_s' not in html  # Should not show raw time data
-    assert 'Avg Time' not in html  # Should not show time averages
-    assert 'Time(s)' not in html  # Should not show time column headers
+    assert 'Get 100% in both topics (this recent quiz) to proceed.' in html
 
 
-def test_dashboard_shows_per_concept_accuracy_and_mastered(logged_in_client):
-    """Test that dashboard shows per-concept accuracy and mastered status."""
+def test_dashboard_shows_concept_breakdown(logged_in_client):
     response = logged_in_client.get('/student/1')
     assert response.status_code == 200
-    
+
     html = response.get_data(as_text=True)
-    # Should contain concept-related elements
-    assert 'Accuracy' in html
-    assert 'Mastered' in html or 'Learning' in html
+    assert 'Data Modeling &amp; DBMS Fundamentals' in html
+    assert 'Normalization &amp; Dependencies' in html
+    assert '% →' in html  # summary formatting marker
 
 
-def test_next_step_shows_first_not_mastered_concept(logged_in_client):
-    """Test that next step shows first not-mastered concept."""
-    response = logged_in_client.get('/student/1')
-    assert response.status_code == 200
-    
-    html = response.get_data(as_text=True)
-    # Should contain next step concept or mastered message
-    assert 'Next Step' in html
-    # Should either show a concept name or mastered message
-    assert ('Functional Dependency' in html or 
-            'Atomic Values' in html or 
-            'Partial Dependency' in html or 
-            'Transitive Dependency' in html or
-            'mastered' in html.lower())
-
-
-def test_next_step_links_to_modules(logged_in_client):
-    """Test that next step links to modules page."""
-    response = logged_in_client.get('/student/1')
-    assert response.status_code == 200
-    
-    html = response.get_data(as_text=True)
-    # Should contain link to modules
-    assert '/modules' in html
-    assert 'Study Module' in html
-
-
-def test_dashboard_access_restricted_to_own_student_id(logged_in_client):
-    """Test that dashboard access is restricted to own student ID."""
-    # Try to access another student's dashboard
+def test_dashboard_access_restricted_to_self(logged_in_client):
     response = logged_in_client.get('/student/999')
-    assert response.status_code == 302  # Should redirect
-    assert '/student/1' in response.location  # Should redirect to own dashboard
+    assert response.status_code == 302
+    assert '/student/1' in response.location
 
 
-def test_reattempt_creates_new_attempt(logged_in_client):
-    """Test that reattempt creates new attempt and redirects to quiz."""
+def test_reattempt_redirects_to_quiz(logged_in_client):
     response = logged_in_client.get('/reattempt')
     assert response.status_code == 302
     assert '/quiz' in response.location
 
 
 def test_modules_page_renders(logged_in_client):
-    """Test that modules page renders successfully."""
     response = logged_in_client.get('/modules')
     assert response.status_code == 200
-    
+
     html = response.get_data(as_text=True)
     assert 'Learning Modules' in html
-    assert 'Study Module' in html
+    assert 'Start Learning' in html

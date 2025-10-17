@@ -2,39 +2,38 @@
 {% from '_partials_learning.html' import flashcard, mcq %}
 {% block title %}Data Modeling & DBMS Fundamentals{% endblock %}
 {% block content %}
+<div class="hero">
+  <h2>Data Modeling &amp; DBMS Fundamentals</h2>
+  <p>Lay the groundwork for successful databases by modeling real-world problems and understanding the engines that power them.</p>
+</div>
 
-<h2>Data Modeling & DBMS Fundamentals</h2>
-
-<section class="section">
-  <h3>Concept Summary</h3>
-  <p>Model the real world with entities/attributes/relationships. Understand tables (relations), rows (records/tuples), columns (fields). Use keys (primary/foreign/candidate) and constraints to keep data accurate. DBMS beats file-based systems by reducing redundancy and improving consistency/security.</p>
-</section>
-
-<section class="section">
-  <h3>Mini Example</h3>
-  <p><strong>Metaphor:</strong> Library. Books (entity) with attributes (Title, ISBN). Members borrow books (relationship). Barcodes = keys.</p>
-  <p><strong>Real:</strong> ERD → <code>Book(ISBN PK, Title, AuthorID FK)</code>, <code>Author(AuthorID PK, Name)</code>, <code>Loan(LoanID PK, MemberID FK, ISBN FK)</code>.</p>
-</section>
-
-<section class="section">
-  <h3>Flashcards</h3>
-  <div class="cards">
-    {{ flashcard("Entity vs Attribute?", "Entity is a thing; attributes are its properties.") }}
-    {{ flashcard("Primary vs Foreign key?", "PK identifies a row; FK references a PK in another table.") }}
-    {{ flashcard("Why DBMS over files?", "Less redundancy, better integrity, shared access, security.") }}
-  </div>
+<div class="module-wrapper">
+  <section class="card module-section">
+    <span class="pill" style="background:#eef2ff;color:#4f46e5">Chapter: Data Modeling</span>
+    <h2>Data Modeling</h2>
+    <p>Create blueprints that capture the relationships between entities, attributes, and business rules. Clean models reduce redundancy and keep future enhancements manageable.</p>
+    <p>Use entity-relationship diagrams (ERDs) to visualize how information connects, and rely on keys and constraints to enforce accuracy.</p>
+    <div class="flashcard-grid">
+      {{ flashcard("Entity vs Attribute?", "Entities are things you track; attributes describe their properties.") }}
+      {{ flashcard("Primary vs Foreign key?", "Primary keys uniquely identify rows; foreign keys reference those identifiers in related tables.") }}
+      {{ flashcard("Why data models?", "Models reduce redundancy, improve integrity, and communicate how data behaves.") }}
+    </div>
   </section>
 
-<section class="section" id="fund-quiz">
-  <h3>Quick Check</h3>
-  {{ mcq("fund_q1","Foreign key does what?","Uniquely identifies the same row","Links rows across tables","Speeds up full scan","b") }}
-  {{ mcq("fund_q2","An attribute in ER modeling is…","A relationship line","A property of an entity","A whole table","b") }}
-  {{ mcq("fund_q3","A row in a table is…","Field","Record/Tuple","Index","b") }}
-  <p class="mcq-result"></p><p class="completion-badge"></p>
-  <button class="btn" onclick="gradeModule('fund-quiz','fundamentals')">Check Answers</button>
-</section>
-
+  <section class="card module-section">
+    <span class="pill" style="background:#ecfdf5;color:#065f46">Chapter: DBMS Fundamentals</span>
+    <h2>DBMS Fundamentals</h2>
+    <p>Database management systems execute SQL, optimize queries, and enforce ACID properties so data stays trustworthy. Indexes and storage engines speed up reads, while constraints prevent invalid values.</p>
+    <p>Understanding these building blocks helps you design schemas that perform well and are easy to maintain.</p>
+    <div class="card mini-quiz-card" id="fund-quiz">
+      <h3>3-Question Mini Check</h3>
+      {{ mcq("fund_q1","What does a foreign key do?","Uniquely identifies a row","Links rows between related tables","Encrypts stored data","b") }}
+      {{ mcq("fund_q2","In ER modeling, an attribute is…","A property describing an entity","A connector between entities","A physical data file","a") }}
+      {{ mcq("fund_q3","Why use indexes on search columns?","They guarantee ACID","They speed up lookups","They replace constraints","b") }}
+      <p class="mcq-result"></p>
+      <p class="completion-badge"></p>
+      <button class="btn" onclick="gradeModule('fund-quiz','fundamentals')">Check Answers</button>
+    </div>
+  </section>
+</div>
 {% endblock %}
-
-
-

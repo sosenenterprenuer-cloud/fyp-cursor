@@ -7,6 +7,13 @@ INSERT INTO module (title, description, nf_level, concept_tag, resource_url) VAL
 ('Second Normal Form (2NF)', 'Eliminate partial dependencies', '2NF', 'Partial Dependency', 'https://en.wikipedia.org/wiki/Second_normal_form'),
 ('Third Normal Form (3NF)', 'Eliminate transitive dependencies', '3NF', 'Transitive Dependency', 'https://en.wikipedia.org/wiki/Third_normal_form');
 
+INSERT OR IGNORE INTO lecturer (name, email, password_hash)
+VALUES (
+  'Admin Lecturer',
+  'admin@lct.edu',
+  'scrypt:32768:8:1$wTlANxNNLLoNn4Uq$6ccbf5f9217be922980d987781fad29737537e9918d31791911222b0b29e968a8b33d3a76ec72a35947ad940a72167c64d76c7e1645ca2b9d6a41fe2ea2cc7d8'
+);
+
 -- Helper for generating sample questions; options_text: JSON array of 4 strings
 -- At least 12 per NF level: FD, 1NF, 2NF, 3NF
 

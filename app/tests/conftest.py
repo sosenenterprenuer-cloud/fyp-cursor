@@ -25,6 +25,8 @@ def logged_in_client(client):
     with client.session_transaction() as sess:
         # Mock a logged in session
         sess['student_id'] = 1
+        sess['student_name'] = 'Test Student'
+        sess['role'] = 'student'
         sess['csrf_token'] = 'test-token'
     
     return client
