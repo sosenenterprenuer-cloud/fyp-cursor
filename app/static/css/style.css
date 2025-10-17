@@ -325,6 +325,24 @@ main.container {
   color: #92400e;
 }
 
+.qa-list {
+  list-style: decimal;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.qa-list .good {
+  color: #065f46;
+  font-weight: 600;
+}
+
+.qa-list .bad {
+  color: #7c2d12;
+  font-weight: 600;
+}
+
 .mastery-card {
   margin: 1.5rem 0;
 }

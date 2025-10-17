@@ -20,6 +20,8 @@
 <script>
 let picked = 0;
 const stars = document.querySelectorAll('#stars span');
+const attemptId = {{ session.get('last_attempt_id', 0) or 0 }};
+
 function paintStars(target) {
   const v = parseInt(target.dataset.val || '0');
   stars.forEach(x => {
@@ -35,21 +37,36 @@ stars.forEach(s => {
     paintStars(s);
   });
 });
-document.getElementById('submitRating').addEventListener('click', async () => {
+
+async function submitFeedback(){
+  const status = document.getElementById('statusMsg');
   const comment = document.getElementById('comment').value || '';
-  if (!picked) { document.getElementById('statusMsg').textContent = 'Please pick 1-5 stars.'; return; }
+  if (!picked) {
+    status.textContent = 'Please pick 1-5 stars.';
+    return;
+  }
   try {
     const res = await fetch('/api/feedback', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ rating: picked, comment })
     });
-    const data = await res.json();
-    document.getElementById('statusMsg').textContent = data.ok ? 'Thanks for the feedback!' : (data.error || 'Error');
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.ok) {
+      if (attemptId) {
+        window.location = `/review/${attemptId}?feedback=1`;
+      } else {
+        window.location = `/student/{{ session.student_id }}?feedback=1`;
+      }
+    } else {
+      status.textContent = (data && data.error) ? data.error : 'Failed to submit feedback.';
+    }
   } catch (err) {
-    document.getElementById('statusMsg').textContent = 'Unable to submit feedback right now.';
+    status.textContent = 'Unable to submit feedback right now.';
   }
-});
+}
+
+document.getElementById('submitRating').addEventListener('click', submitFeedback);
 </script>
 {% endblock %}
 

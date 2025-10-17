@@ -506,6 +506,32 @@ def reattempt():
 
 def _get_or_create_open_attempt(student_id: int) -> int:
     db = get_db()
+    try:
+        exists = db.execute(
+            "SELECT 1 FROM student WHERE student_id=?",
+            (student_id,),
+        ).fetchone()
+    except Exception:
+        exists = None
+    if not exists:
+        try:
+            db.execute(
+                """
+                INSERT OR IGNORE INTO student (student_id, name, email, program, password_hash)
+                VALUES (?,?,?,?,?)
+                """,
+                (
+                    student_id,
+                    f"Student {student_id}",
+                    f"student{student_id}@example.com",
+                    "",
+                    generate_password_hash("temp"),
+                ),
+            )
+            db.commit()
+        except Exception as exc:
+            print("[ATTEMPT] Failed to ensure student row:", repr(exc))
+
     cur = db.execute(
         "SELECT attempt_id FROM attempt WHERE student_id=? AND finished_at IS NULL ORDER BY started_at DESC LIMIT 1",
         (student_id,),
@@ -771,6 +797,8 @@ def submit():
 
     db.commit()
 
+    session["last_attempt_id"] = attempt_id
+
     return jsonify(
         {
             "attempt_id": attempt_id,
@@ -823,6 +851,71 @@ def student_dashboard(student_id: int):
         last_attempt=last,
         two_cat=two_cat,
         unlocked_next=unlocked_next,
+        next_topic_name="Next Topic (Prototype End)",
+    )
+
+
+@app.route("/review/<int:attempt_id>")
+@login_required
+def review_attempt(attempt_id: int):
+    sid = int(session["student_id"])
+    with get_db() as conn:
+        att = conn.execute(
+            """
+            SELECT attempt_id, started_at, finished_at, score_pct, items_total, items_correct,
+                   IFNULL(source,'live') AS source
+            FROM attempt
+            WHERE attempt_id=? AND student_id=?
+            """,
+            (attempt_id, sid),
+        ).fetchone()
+        if not att:
+            flash("Attempt not found.", "error")
+            return redirect(url_for("student_dashboard", student_id=sid))
+
+        rows = conn.execute(
+            """
+            SELECT q.quiz_id, q.question, q.correct_answer, q.explanation, q.two_category,
+                   r.answer AS your_answer, r.score AS is_correct, r.response_time_s
+            FROM response r
+            JOIN quiz q ON q.quiz_id = r.quiz_id
+            WHERE r.student_id=? AND r.attempt_id=?
+            ORDER BY q.quiz_id
+            """,
+            (sid, attempt_id),
+        ).fetchall()
+
+        split = conn.execute(
+            """
+            SELECT q.two_category AS cat, SUM(r.score) AS correct, COUNT(*) AS total
+            FROM response r JOIN quiz q ON q.quiz_id=r.quiz_id
+            WHERE r.student_id=? AND r.attempt_id=?
+            GROUP BY q.two_category
+            """,
+            (sid, attempt_id),
+        ).fetchall()
+
+    fund_total = fund_correct = norm_total = norm_correct = 0
+    for r in split:
+        if r["cat"] == "Data Modeling & DBMS Fundamentals":
+            fund_correct = int(r["correct"] or 0)
+            fund_total = int(r["total"] or 0)
+        elif r["cat"] == "Normalization & Dependencies":
+            norm_correct = int(r["correct"] or 0)
+            norm_total = int(r["total"] or 0)
+
+    fund_pct = round(100 * fund_correct / fund_total, 1) if fund_total else 0.0
+    norm_pct = round(100 * norm_correct / norm_total, 1) if norm_total else 0.0
+    unlocked_next = fund_pct == 100.0 and norm_pct == 100.0
+
+    return render_template(
+        "review.html",
+        attempt=att,
+        items=rows,
+        fund_pct=fund_pct,
+        norm_pct=norm_pct,
+        unlocked_next=unlocked_next,
+        next_topic_name="Next Topic (Prototype End)",
     )
 
 

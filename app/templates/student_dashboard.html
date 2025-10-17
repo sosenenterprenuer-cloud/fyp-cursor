@@ -24,7 +24,9 @@
   <div class="dashboard-card next-step-card">
     <h3>Progression Status</h3>
     {% if unlocked_next %}
-      <div class="notice success">✅ Perfect score in both topics! You can proceed.</div>
+      <div class="notice success">
+        ✅ Perfect score in both topics! Next recommendation: <strong>{{ next_topic_name }}</strong>
+      </div>
       <a class="btn primary" href="/thanks">Proceed to Next Topic</a>
     {% else %}
       <div class="notice warn">🔒 Get 100% in both topics (this recent quiz) to proceed.</div>

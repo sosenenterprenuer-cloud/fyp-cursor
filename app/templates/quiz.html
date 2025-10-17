@@ -80,15 +80,16 @@ async function submitQuiz(){
       time_sec: 0
     }))
   };
+  let data = {};
   try {
     const res = await fetch('/submit', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify(payload)
     });
+    data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      alert(data.error || 'Unable to submit quiz.');
+      alert((data && data.error) || 'Unable to submit quiz.');
       if (submitBtn) submitBtn.disabled = false;
       return;
     }
@@ -97,7 +98,8 @@ async function submitQuiz(){
     if (submitBtn) submitBtn.disabled = false;
     return;
   }
-  window.location = `/student/{{ student_id }}`;
+  const nextAttempt = (data && typeof data.attempt_id === 'number') ? data.attempt_id : attemptId;
+  window.location = `/review/${nextAttempt}`;
 }
 
 window.addEventListener('DOMContentLoaded', render);
