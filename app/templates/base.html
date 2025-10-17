@@ -1,58 +1,48 @@
-diff --git a/app/templates/base.html b/app/templates/base.html
-index 0cade51c164f164ab9c1414c7a40538f52c0947e..bf9479f8550cfeb10df2ee436622cd609fb2a2e7 100644
---- a/app/templates/base.html
-+++ b/app/templates/base.html
-@@ -1,46 +1,50 @@
- <!doctype html>
- <html lang="en">
- <head>
-   <meta charset="utf-8">
-   <meta name="viewport" content="width=device-width, initial-scale=1">
-   <title>{% block title %}PLA Normalization Quiz{% endblock %}</title>
-   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
- </head>
- <body>
-   <nav class="navbar">
-     <div class="container">
-       <a href="{{ url_for('index') }}" class="brand">Normalization Quiz</a>
-       <ul class="nav">
--        <li><a href="{{ url_for('index') }}">Home</a></li>
--        {% if session.get('student_id') %}
-+        {% if session.get('role') == 'lecturer' %}
-+          <li><a href="{{ url_for('admin_overview') }}">Home</a></li>
-+        {% else %}
-+          <li><a href="{{ url_for('index') }}">Home</a></li>
-+        {% endif %}
-+        {% if session.get('role') == 'student' %}
-           <li><a href="{{ url_for('student_dashboard', student_id=session.get('student_id')) }}">Dashboard</a></li>
-           <li><a href="{{ url_for('modules') }}">Modules</a></li>
-         {% endif %}
-       </ul>
--      {% if session.get('student_id') %}
-+      {% if session.get('role') %}
-         <div class="nav-right">
-           <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
-         </div>
-       {% else %}
-         <div class="nav-right">
-           <a href="{{ url_for('login') }}">Login</a>
-           <a href="{{ url_for('register') }}">Register</a>
-         </div>
-       {% endif %}
-     </div>
-   </nav>
- 
-   <main class="container">
-     {% with messages = get_flashed_messages() %}
-       {% if messages %}
-         <div class="flash">
-           {% for message in messages %}
-             <div class="flash-item">{{ message }}</div>
-           {% endfor %}
-         </div>
-       {% endif %}
-     {% endwith %}
- 
-     {% block content %}{% endblock %}
-   </main>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Personalized Learning Recommendation AI{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container">
+        <h1 class="site-title">Personalized Learning Recommendation AI</h1>
+        <nav class="nav">
+          <ul>
+            {% if session.get('role') == 'student' %}
+              <li><a href="{{ url_for('dashboard') }}">Home</a></li>
+              <li><a href="{{ url_for('quiz') }}">Quiz</a></li>
+              <li><a href="{{ url_for('thanks') }}">Feedback</a></li>
+              <li><a href="{{ url_for('logout') }}">Logout</a></li>
+            {% elif session.get('role') == 'lecturer' %}
+              <li><a href="{{ url_for('admin_home') }}">Home</a></li>
+              <li><a href="{{ url_for('admin_analytics') }}">Analytics</a></li>
+              <li><a href="{{ url_for('admin_rankings') }}">Rankings</a></li>
+              <li><a href="{{ url_for('admin_questions') }}">Questions</a></li>
+              <li><a href="{{ url_for('logout') }}">Logout</a></li>
+            {% else %}
+              <li><a href="{{ url_for('login') }}">Login</a></li>
+              <li><a href="{{ url_for('register') }}">Register</a></li>
+            {% endif %}
+          </ul>
+        </nav>
+      </div>
+    </header>
+    <main class="container">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="flash-list">
+            {% for category, message in messages %}
+              <div class="notice {{ category }}">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+      {% block content %}{% endblock %}
+    </main>
+  </body>
+</html>

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard · Personalized Learning Recommendation AI{% endblock %}
+{% block content %}
+  <section class="card">
+    <h2>Snapshot</h2>
+    <div class="metrics-grid">
+      <div class="metric"><span>{{ counts.students }}</span><p>Students</p></div>
+      <div class="metric"><span>{{ counts.attempts }}</span><p>Attempts</p></div>
+      <div class="metric"><span>{{ counts.responses }}</span><p>Responses</p></div>
+      <div class="metric"><span>{{ counts.attempts_with_responses }}</span><p>Attempts with responses</p></div>
+    </div>
+    <div class="actions">
+      <a class="btn" href="{{ url_for('admin_analytics') }}">Analytics</a>
+      <a class="btn" href="{{ url_for('admin_rankings') }}">Rankings</a>
+      <a class="btn" href="{{ url_for('admin_questions') }}">Questions</a>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Accuracy by Concept</h2>
+    <table class="table">
+      <thead><tr><th>Topic</th><th>Correct %</th><th>Responses</th></tr></thead>
+      <tbody>
+        {% for row in accuracy %}
+          <tr>
+            <td>{{ row.topic }}</td>
+            <td>{{ row.pct }}%</td>
+            <td>{{ row.total }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="card">
+    <h2>14-day activity</h2>
+    <canvas id="attempt-chart" height="140"></canvas>
+  </section>
+  <script>
+    const ctx = document.getElementById('attempt-chart');
+    const chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: {{ day_labels|tojson }},
+        datasets: [
+          {
+            label: 'Attempts',
+            data: {{ attempts_per_day|tojson }},
+            borderColor: '#2563eb',
+            backgroundColor: 'rgba(37, 99, 235, 0.15)',
+            tension: 0.3,
+            fill: true
+          },
+          {
+            label: 'Attempts with responses',
+            data: {{ attempted_with_responses|tojson }},
+            borderColor: '#0f172a',
+            backgroundColor: 'rgba(15, 23, 42, 0.1)',
+            tension: 0.3,
+            fill: true
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'bottom' }
+        },
+        scales: {
+          y: { beginAtZero: true, ticks: { precision: 0 } }
+        }
+      }
+    });
+  </script>
+{% endblock %}
