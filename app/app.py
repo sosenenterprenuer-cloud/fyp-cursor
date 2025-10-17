@@ -244,18 +244,55 @@ def before_request() -> None:
     ensure_csrf_token()
 
 
-def login_required(view):
-    @wraps(view)
-    def wrapped(*args, **kwargs):
-        if not session.get("student_id"):
-            # For JSON API calls, return 302 redirect to /login to satisfy acceptance
-            if request.path.startswith("/api/") or request.path == "/submit":
-                return redirect(url_for("login"))
-            flash("Please log in to continue.")
-            return redirect(url_for("login"))
-        return view(*args, **kwargs)
+def _redirect_login(role_hint: Optional[str] = None):
+    login_url = url_for("login", role=role_hint) if role_hint else url_for("login")
+    if request.path.startswith("/api/") or request.path == "/submit":
+        return redirect(login_url)
+    flash("Please log in to continue.")
+    return redirect(login_url)
 
-    return wrapped
+
+def _require_role(expected: Optional[str]):
+    def decorator(view):
+        @wraps(view)
+        def wrapped(*args, **kwargs):
+            role = session.get("role")
+            student_ok = role == "student" and session.get("student_id")
+            lecturer_ok = role == "lecturer" and session.get("lecturer_id")
+
+            allowed = False
+            if expected == "student":
+                allowed = bool(student_ok)
+            elif expected == "lecturer":
+                allowed = bool(lecturer_ok)
+            else:
+                allowed = bool(student_ok or lecturer_ok)
+
+            if allowed:
+                return view(*args, **kwargs)
+
+            role_hint = None
+            if expected == "lecturer":
+                role_hint = "lecturer"
+            elif expected == "student":
+                role_hint = "student"
+            return _redirect_login(role_hint)
+
+        return wrapped
+
+    return decorator
+
+
+def login_required(view):
+    return _require_role(None)(view)
+
+
+def student_required(view):
+    return _require_role("student")(view)
+
+
+def lecturer_required(view):
+    return _require_role("lecturer")(view)
 
 
 # --- Business helpers ---
@@ -423,9 +460,15 @@ def register():
             (name, email, program, password_hash),
         )
         db.commit()
-        cur = db.execute("SELECT student_id FROM student WHERE email=?", (email,))
+        cur = db.execute(
+            "SELECT student_id, name FROM student WHERE email=?",
+            (email,),
+        )
         row = cur.fetchone()
+        session.clear()
+        session["role"] = "student"
         session["student_id"] = row["student_id"]
+        session["student_name"] = row["name"]
         flash("Welcome! Account created.")
         return redirect(url_for("student_dashboard", student_id=row["student_id"]))
 
@@ -442,19 +485,44 @@ def login():
 
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
-        db = get_db()
-        cur = db.execute(
-            "SELECT student_id, password_hash FROM student WHERE email=?",
-            (email,),
-        )
-        row = cur.fetchone()
-        if not row or not check_password_hash(row["password_hash"], password):
-            flash("Invalid credentials.")
-            return redirect(url_for("login"))
+        desired_role = request.args.get("role")
 
-        session["student_id"] = row["student_id"]
-        flash("Logged in.")
-        return redirect(url_for("student_dashboard", student_id=row["student_id"]))
+        if not email or not password:
+            flash("Please provide email and password.")
+            return redirect(url_for("login", role=desired_role) if desired_role else url_for("login"))
+
+        db = get_db()
+
+        student = db.execute(
+            "SELECT student_id, name, password_hash FROM student WHERE lower(email)=?",
+            (email,),
+        ).fetchone()
+        if student:
+            stored = student["password_hash"] or ""
+            if stored == "" or check_password_hash(stored, password):
+                session.clear()
+                session["role"] = "student"
+                session["student_id"] = student["student_id"]
+                session["student_name"] = student["name"]
+                flash("Logged in.")
+                return redirect(url_for("student_dashboard", student_id=student["student_id"]))
+
+        lecturer = db.execute(
+            "SELECT lecturer_id, name, password_hash FROM lecturer WHERE lower(email)=?",
+            (email,),
+        ).fetchone()
+        if lecturer:
+            stored_lect = lecturer["password_hash"] or ""
+            if stored_lect and check_password_hash(stored_lect, password):
+                session.clear()
+                session["role"] = "lecturer"
+                session["lecturer_id"] = lecturer["lecturer_id"]
+                session["lecturer_name"] = lecturer["name"]
+                flash("Welcome back.")
+                return redirect(url_for("admin_overview"))
+
+        flash("Invalid credentials.")
+        return redirect(url_for("login", role=desired_role) if desired_role else url_for("login"))
 
     return render_template("login.html")
 
@@ -467,7 +535,7 @@ def logout():
 
 
 @app.route("/quiz")
-@login_required
+@student_required
 def quiz():
     student_id = int(session["student_id"])  # never trust posted ids
     attempt_id = _get_or_create_open_attempt(student_id)
@@ -496,7 +564,7 @@ def quiz():
 
 
 @app.route("/reattempt")
-@login_required
+@student_required
 def reattempt():
     """Create a new attempt and redirect to quiz."""
     student_id = int(session["student_id"])
@@ -647,7 +715,7 @@ def _select_questions_payload(total: int = 30) -> List[Dict[str, Any]]:
 
 
 @app.route("/api/quiz_progressive")
-@login_required
+@student_required
 def api_quiz_progressive():
     student_id = int(session["student_id"])  # never trust posted student_id
     attempt_id = _get_or_create_open_attempt(student_id)
@@ -669,7 +737,7 @@ def api_quiz_progressive():
 
 
 @app.route("/submit", methods=["POST"]) 
-@login_required
+@student_required
 def submit():
     student_id = int(session["student_id"])  # never trust posted student_id
     data = request.get_json(silent=True) or {}
@@ -799,6 +867,10 @@ def submit():
 
     session["last_attempt_id"] = attempt_id
 
+    print(
+        f"[SUBMIT] sid={student_id} attempt={attempt_id} total={total} correct={correct} pct={round(score_pct, 1)}"
+    )
+
     return jsonify(
         {
             "attempt_id": attempt_id,
@@ -814,7 +886,7 @@ def submit():
 
 
 @app.route("/student/<int:student_id>")
-@login_required
+@student_required
 def student_dashboard(student_id: int):
     current_student_id = int(session["student_id"])  # never trust URL param
     if student_id != current_student_id:
@@ -856,7 +928,7 @@ def student_dashboard(student_id: int):
 
 
 @app.route("/review/<int:attempt_id>")
-@login_required
+@student_required
 def review_attempt(attempt_id: int):
     sid = int(session["student_id"])
     with get_db() as conn:
@@ -919,8 +991,147 @@ def review_attempt(attempt_id: int):
     )
 
 
+@app.route("/admin")
+@lecturer_required
+def admin_overview():
+    with get_db() as conn:
+        totals = conn.execute(
+            """
+            SELECT
+              (SELECT COUNT(*) FROM student)   AS students,
+              (SELECT COUNT(*) FROM attempt)   AS attempts,
+              (SELECT COUNT(*) FROM response)  AS responses
+            """,
+        ).fetchone()
+
+        by_cat = conn.execute(
+            """
+            SELECT q.two_category AS cat,
+                   ROUND(AVG(r.score) * 100, 1) AS acc,
+                   COUNT(*) AS n
+            FROM response r
+            JOIN quiz q ON q.quiz_id = r.quiz_id
+            GROUP BY q.two_category
+            ORDER BY q.two_category
+            """,
+        ).fetchall()
+
+        recent = conn.execute(
+            """
+            SELECT substr(started_at, 1, 10) AS d, COUNT(*) AS n
+            FROM attempt
+            WHERE started_at IS NOT NULL
+            GROUP BY substr(started_at, 1, 10)
+            ORDER BY d DESC
+            LIMIT 14
+            """,
+        ).fetchall()
+
+    return render_template(
+        "admin_overview.html",
+        totals=totals,
+        by_cat=by_cat,
+        recent=recent,
+    )
+
+
+@app.route("/admin/students")
+@lecturer_required
+def admin_students():
+    with get_db() as conn:
+        students = conn.execute(
+            """
+            SELECT s.student_id, s.name, s.email,
+                   COALESCE(a.cnt, 0) AS attempts
+            FROM student s
+            LEFT JOIN (
+                SELECT student_id, COUNT(*) AS cnt
+                FROM attempt
+                GROUP BY student_id
+            ) a USING (student_id)
+            ORDER BY s.name
+            """,
+        ).fetchall()
+    return render_template("admin_students.html", students=students)
+
+
+@app.route("/admin/students/<int:sid>")
+@lecturer_required
+def admin_student_detail(sid: int):
+    with get_db() as conn:
+        stu = conn.execute(
+            "SELECT student_id, name, email FROM student WHERE student_id=?",
+            (sid,),
+        ).fetchone()
+        if not stu:
+            flash("Student not found.", "error")
+            return redirect(url_for("admin_students"))
+
+        attempts = conn.execute(
+            """
+            SELECT attempt_id, started_at, finished_at, score_pct, items_total, items_correct
+            FROM attempt
+            WHERE student_id=?
+            ORDER BY started_at DESC
+            """,
+            (sid,),
+        ).fetchall()
+
+        latest = conn.execute(
+            """
+            SELECT attempt_id
+            FROM attempt
+            WHERE student_id=?
+            ORDER BY started_at DESC
+            LIMIT 1
+            """,
+            (sid,),
+        ).fetchone()
+
+        split = []
+        if latest:
+            split = conn.execute(
+                """
+                SELECT q.two_category AS cat,
+                       SUM(r.score) AS correct,
+                       COUNT(*) AS total,
+                       ROUND(100.0 * SUM(r.score) / COUNT(*), 1) AS pct
+                FROM response r
+                JOIN quiz q ON q.quiz_id = r.quiz_id
+                WHERE r.student_id=? AND r.attempt_id=?
+                GROUP BY q.two_category
+                """,
+                (sid, latest["attempt_id"]),
+            ).fetchall()
+
+    return render_template(
+        "admin_student_detail.html",
+        stu=stu,
+        attempts=attempts,
+        split=split,
+    )
+
+
+@app.route("/admin/questions")
+@lecturer_required
+def admin_questions():
+    with get_db() as conn:
+        qs = conn.execute(
+            """
+            SELECT q.quiz_id, q.two_category, q.question,
+                   ROUND(AVG(r.score) * 100, 1) AS correct_rate,
+                   COUNT(r.response_id) AS n
+            FROM quiz q
+            LEFT JOIN response r ON r.quiz_id = q.quiz_id
+            GROUP BY q.quiz_id
+            ORDER BY q.quiz_id
+            """,
+        ).fetchall()
+    return render_template("admin_questions.html", qs=qs)
+
+
 @app.route("/modules")
-@login_required
+@student_required
 def modules():
     """Show all available modules."""
     db = get_db()
@@ -966,19 +1177,19 @@ def modules():
 
 
 @app.route("/module/fundamentals")
-@login_required
+@student_required
 def module_fundamentals():
     return render_template("module_fundamentals.html")
 
 
 @app.route("/module/norm")
-@login_required
+@student_required
 def module_norm():
     return render_template("module_norm.html")
 
 
 @app.route("/api/module_progress", methods=["POST"])
-@login_required
+@student_required
 def api_module_progress():
     data = request.get_json(force=True) or {}
     module_key = (data.get("module_key") or "").strip().lower()  # 'fundamentals' | 'norm'
@@ -1004,13 +1215,13 @@ def api_module_progress():
 
 
 @app.route("/thanks")
-@login_required
+@student_required
 def thanks_page():
     return render_template("thanks.html")
 
 
 @app.route("/api/feedback", methods=["POST"])
-@login_required
+@student_required
 def api_feedback():
     data = request.get_json(force=True) or {}
     try:
@@ -1025,6 +1236,7 @@ def api_feedback():
         conn.execute("INSERT INTO feedback (student_id, rating, comment) VALUES (?,?,?)",
                      (sid, rating, comment))
         conn.commit()
+    print(f"[FEEDBACK] sid={sid} rating={rating} comment_len={len(comment)}")
     return jsonify({"ok": True})
 
 

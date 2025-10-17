@@ -61,6 +61,13 @@ CREATE TABLE IF NOT EXISTS module (
   resource_url TEXT
 );
 
+CREATE TABLE IF NOT EXISTS lecturer (
+  lecturer_id   INTEGER PRIMARY KEY,
+  name          TEXT NOT NULL,
+  email         TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS recommendation (
   recommendation_id INTEGER PRIMARY KEY,
   student_id INTEGER NOT NULL,

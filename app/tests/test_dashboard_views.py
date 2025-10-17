@@ -17,7 +17,7 @@ def test_dashboard_shows_action_buttons(logged_in_client):
 
     html = response.get_data(as_text=True)
     # Should contain links to retake and module pages
-    assert 'Reattempt Quiz' in html or 'Start Quiz' in html
+    assert 'Retake Quiz' in html or 'Start Quiz' in html
     assert '/module/fundamentals' in html
     assert '/module/norm' in html
 
