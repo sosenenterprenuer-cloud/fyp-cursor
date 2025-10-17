@@ -3,16 +3,23 @@ Safe database migrations for the PLA app.
 Adds missing columns and indexes without breaking existing data.
 """
 
-import sqlite3
 import os
+import sqlite3
+import sys
 from typing import Any
+
+if __package__:
+    from .db_utils import ensure_db_path
+else:
+    sys.path.insert(0, os.path.dirname(__file__))
+    from db_utils import ensure_db_path
 
 
 def run_migrations(db_path: str = None) -> None:
     """Run all pending migrations on the database."""
     if db_path is None:
-        db_path = os.environ.get("PLA_DB", "pla.db")
-    
+        db_path = str(ensure_db_path(os.environ.get("PLA_DB")))
+
     conn = sqlite3.connect(db_path)
     conn.execute("PRAGMA foreign_keys=ON")
     

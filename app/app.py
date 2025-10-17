@@ -1,10 +1,19 @@
 import os
+import sys
 import json
 import sqlite3
 import secrets
 from datetime import datetime
 from functools import wraps
 from typing import Any, Dict, List, Optional
+
+BASE_DIR = os.path.dirname(__file__)
+
+if __package__:
+    from .db_utils import ensure_db_path
+else:
+    sys.path.insert(0, BASE_DIR)
+    from db_utils import ensure_db_path
 
 from flask import (
     Flask,
@@ -24,7 +33,11 @@ from dotenv import load_dotenv
 # Load environment
 load_dotenv()
 
-app = Flask(__name__, static_folder="static", template_folder="templates")
+app = Flask(
+    __name__,
+    static_folder=os.path.join(BASE_DIR, "static"),
+    template_folder=os.path.join(BASE_DIR, "templates"),
+)
 app.secret_key = os.environ.get("FLASK_SECRET", "dev-secret")
 app.config["JSON_SORT_KEYS"] = False
 
@@ -34,11 +47,7 @@ app.config["JSON_SORT_KEYS"] = False
 def get_db() -> sqlite3.Connection:
     if "db" not in g:
         # 1) Resolve DB path safely
-        raw = os.environ.get("PLA_DB", "pla.db")
-        raw = raw.strip().strip('"').strip("'")           # strip stray quotes
-        base_dir = os.path.dirname(__file__)
-        db_path = raw if os.path.isabs(raw) else os.path.join(base_dir, raw)
-        os.makedirs(os.path.dirname(db_path) or base_dir, exist_ok=True)
+        db_path = str(ensure_db_path(os.environ.get("PLA_DB")))
 
         # 2) Connect (row dicts + FK on)
         conn = sqlite3.connect(db_path, detect_types=sqlite3.PARSE_DECLTYPES)
@@ -58,6 +67,7 @@ def get_db() -> sqlite3.Connection:
         has_any_core = table_exists("student") or table_exists("quiz") or table_exists("attempt")
 
         if not has_any_core:
+            base_dir    = os.path.dirname(__file__)
             schema_path = os.path.join(base_dir, "schema.sql")
             seed_path   = os.path.join(base_dir, "seed.sql")
             try:

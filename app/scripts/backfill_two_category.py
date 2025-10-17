@@ -1,8 +1,16 @@
-import os, sqlite3
+import os
+import sqlite3
+import sys
 
-db = os.getenv('PLA_DB', 'pla.db')
-print("DB:", os.path.abspath(db))
-con = sqlite3.connect(db)
+if __package__:
+    from ..db_utils import ensure_db_path
+else:
+    sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+    from db_utils import ensure_db_path
+
+db_path = str(ensure_db_path(os.getenv('PLA_DB')))
+print("DB:", os.path.abspath(db_path))
+con = sqlite3.connect(db_path)
 
 # 1) Add column if missing
 cols = [r[1] for r in con.execute("PRAGMA table_info(quiz)")]

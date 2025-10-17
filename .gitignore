@@ -1,0 +1,26 @@
+# Local development artifacts
+.venv/
+__pycache__/
+*.pyc
+
+# Editor settings
+.vscode/
+.idea/
+
+# Local databases and binary assets
+app/pla.db
+app/FYP Project.pdf
+app/instance/*.db
+app/instance/*.sqlite*
+app/instance/*.bak
+!app/instance/.gitkeep
+app/static/docs/*.pdf
+app/static/docs/*.doc*
+app/static/docs/*.ppt*
+app/static/docs/*.xls*
+!app/static/docs/.gitkeep
+
+# Environment files
+.env
+*.sqlite
+*.db
