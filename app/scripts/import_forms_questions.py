@@ -9,6 +9,7 @@ import os
 import shutil
 import sqlite3
 import sys
+from collections import OrderedDict
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
@@ -97,6 +98,10 @@ POINTS_PREFIX = "Points - "
 QuestionRecord = Dict[str, object]
 
 
+def _trim(text: object) -> str:
+    return str(text).strip() if text is not None else ""
+
+
 class ImportErrorWithReport(RuntimeError):
     """Raised when the incoming data cannot be converted to 30 questions."""
 
@@ -143,7 +148,7 @@ def read_rows_from_xlsx(path: Path) -> List[List[str]]:
     sheet = workbook.active
     rows: List[List[str]] = []
     for excel_row in sheet.iter_rows(values_only=True):
-        values = [str(cell).strip() if cell is not None else "" for cell in excel_row]
+        values = [_trim(cell) for cell in excel_row]
         if any(values):
             rows.append(values)
     workbook.close()
@@ -155,7 +160,7 @@ def read_rows_from_csv(path: Path) -> List[List[str]]:
     with path.open("r", encoding="utf-8-sig", newline="") as handle:
         reader = csv.reader(handle)
         for csv_row in reader:
-            values = [cell.strip() for cell in csv_row]
+            values = [_trim(cell) for cell in csv_row]
             if any(values):
                 rows.append(values)
     return rows
@@ -173,29 +178,33 @@ def build_question_map(table: List[List[str]]) -> Dict[str, Dict[str, object]]:
     if not table:
         raise ImportErrorWithReport("Input file contains no data rows.")
 
-    header = [str(cell).strip() for cell in table[0]]
+    header = [_trim(cell) for cell in table[0]]
     if not any(header):
         raise ImportErrorWithReport("Header row is empty.")
 
-    question_columns: Dict[str, Dict[str, int]] = {}
+    question_columns: "OrderedDict[str, Dict[str, int]]" = OrderedDict()
     for idx, column_name in enumerate(header):
-        if column_name.startswith(POINTS_PREFIX):
-            question_text = column_name[len(POINTS_PREFIX) :].strip()
-            if not question_text:
-                continue
-            try:
-                answer_index = header.index(question_text)
-            except ValueError:
-                continue
-            question_columns[question_text] = {
-                "answer_idx": answer_index,
-                "points_idx": idx,
-            }
+        if not column_name or not column_name.startswith(POINTS_PREFIX):
+            continue
+
+        question_text = column_name[len(POINTS_PREFIX) :].strip()
+        if not question_text or question_text in question_columns:
+            continue
+
+        try:
+            answer_index = header.index(question_text)
+        except ValueError:
+            continue
+
+        question_columns[question_text] = {
+            "answer_idx": answer_index,
+            "points_idx": idx,
+        }
 
     if not question_columns:
         raise ImportErrorWithReport("Could not locate any 'Points - <Question>' columns.")
 
-    details: Dict[str, Dict[str, object]] = {}
+    details: "OrderedDict[str, Dict[str, object]]" = OrderedDict()
     for question_text, indices in question_columns.items():
         details[question_text] = {
             "question": question_text,
@@ -217,7 +226,7 @@ def build_question_map(table: List[List[str]]) -> Dict[str, Dict[str, object]]:
             answer_val = row[answer_idx] if answer_idx < len(row) else ""
             points_val = row[points_idx] if points_idx < len(row) else ""
 
-            answer_text = str(answer_val).strip() if answer_val is not None else ""
+            answer_text = _trim(answer_val)
             if not answer_text:
                 continue
 
@@ -239,7 +248,7 @@ def parse_points(value: object) -> int:
         return 0
     if isinstance(value, (int, float)):
         return 1 if float(value) > 0 else 0
-    text = str(value).strip()
+    text = _trim(value)
     if not text:
         return 0
     try:
@@ -284,6 +293,11 @@ def build_question_records(table: List[List[str]]) -> List[QuestionRecord]:
             )
         if len(options) > 6:
             options = options[:6]
+
+        # Microsoft Forms typically supplies four options, but occasionally a
+        # dataset can contain fewer (e.g., true/false). We keep whatever was
+        # observed and map letters in discovery order so callers can still work
+        # with the reduced option set while staying within the 4–6 guidance.
         counts: Dict[str, int] = info["correct_counts"]  # type: ignore[assignment]
         correct_option = choose_correct_option(options, counts)
         if correct_option not in options:
