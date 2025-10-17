@@ -1056,22 +1056,28 @@ def admin_overview():
             """,
         ).fetchall()
 
-        recent = conn.execute(
+        recent_rows = conn.execute(
             """
             SELECT substr(started_at, 1, 10) AS d, COUNT(*) AS n
             FROM attempt
-            WHERE started_at IS NOT NULL
-            GROUP BY substr(started_at, 1, 10)
+            GROUP BY d
             ORDER BY d DESC
             LIMIT 14
             """,
         ).fetchall()
 
+    labels = [r["d"] for r in recent_rows][::-1]
+    counts = [int(r["n"] or 0) for r in recent_rows][::-1]
+
+    if not labels:
+        labels, counts = [], []
+
     return render_template(
         "admin_overview.html",
         totals=totals,
         by_cat=by_cat,
-        recent=recent,
+        labels=labels,
+        counts=counts,
     )
 
 

@@ -21,29 +21,30 @@
 
 <h3>Attempts (last 14 days)</h3>
 <canvas id="attemptsChart" height="160"></canvas>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-const labels = {{ recent|map(attribute='d')|list|reverse|tojson }};
-const series = {{ recent|map(attribute='n')|list|reverse|tojson }};
-const ctx = document.getElementById('attemptsChart').getContext('2d');
-new Chart(ctx, {
-  type: 'line',
-  data: {
-    labels,
-    datasets: [{
-      label: 'Attempts',
-      data: series,
-      borderColor: '#4f46e5',
-      backgroundColor: 'rgba(79,70,229,0.15)',
-      fill: true,
-      tension: 0.3
-    }]
-  },
-  options: {
-    responsive: true,
-    plugins: { legend: { display: false } },
-    scales: { y: { beginAtZero: true, precision: 0 } }
-  }
-});
+  const labels = {{ labels|tojson }};
+  const counts = {{ counts|tojson }};
+  const ctx = document.getElementById('attemptsChart').getContext('2d');
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Attempts',
+        data: counts,
+        borderColor: '#4f46e5',
+        backgroundColor: 'rgba(79,70,229,0.15)',
+        fill: true,
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, precision: 0 } }
+    }
+  });
 </script>
 
 <p class="admin-links">
