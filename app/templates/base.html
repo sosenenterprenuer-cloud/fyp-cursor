@@ -12,13 +12,17 @@
     <div class="container">
       <a href="{{ url_for('index') }}" class="brand">Normalization Quiz</a>
       <ul class="nav">
-        <li><a href="{{ url_for('index') }}">Home</a></li>
-        {% if session.get('student_id') %}
+        {% if session.get('role') == 'lecturer' %}
+          <li><a href="{{ url_for('admin_overview') }}">Home</a></li>
+        {% else %}
+          <li><a href="{{ url_for('index') }}">Home</a></li>
+        {% endif %}
+        {% if session.get('role') == 'student' %}
           <li><a href="{{ url_for('student_dashboard', student_id=session.get('student_id')) }}">Dashboard</a></li>
           <li><a href="{{ url_for('modules') }}">Modules</a></li>
         {% endif %}
       </ul>
-      {% if session.get('student_id') %}
+      {% if session.get('role') %}
         <div class="nav-right">
           <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
         </div>

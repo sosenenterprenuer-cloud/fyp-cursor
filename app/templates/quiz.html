@@ -2,47 +2,107 @@
 {% block title %}Quiz{% endblock %}
 {% block content %}
 <div class="quiz-container">
-  <div id="quiz-root">
-    <div class="quiz-loading">
-      <h2>Loading Quiz...</h2>
-      <p>Preparing your quiz questions...</p>
+  {% if questions %}
+  <div class="quiz-card">
+    <div id="qnum" class="quiz-progress"></div>
+    <div id="qtext" class="question"></div>
+    <div id="opts" class="quiz-options"></div>
+    <div class="quiz-nav">
+      <button id="back" class="btn-outline" onclick="backQ()">Back</button>
+      <button id="next" class="btn-outline" onclick="nextQ()">Next</button>
+      <button id="submitBtn" class="btn" onclick="submitQuiz()">Submit</button>
     </div>
   </div>
-</div>
-
-<!-- Result Modal -->
-<div id="result-modal" class="modal" style="display: none;">
-  <div class="modal-content">
-    <div class="result-header">
-      <h2>Quiz Complete!</h2>
-    </div>
-    
-    <div class="result-score">
-      <div class="score-circle">
-        <span id="result-percentage">0%</span>
-      </div>
-      <p id="result-message">Loading...</p>
-    </div>
-    
-    <div class="result-actions">
-      <button id="retake-btn" class="btn btn-primary" style="display: none;">
-        Retake Quiz
-      </button>
-      <button id="next-topic-btn" class="btn btn-secondary" style="display: none;">
-        Continue to Next Topic
-      </button>
-    </div>
-    
-    <div class="result-feedback">
-      <h3>Question Feedback</h3>
-      <div id="feedback-list"></div>
-    </div>
-    
-    <div class="result-close">
-      <button id="close-result" class="btn btn-outline">Close</button>
-    </div>
+  {% else %}
+  <div class="quiz-card">
+    <p>Quiz is currently unavailable. Please try again later.</p>
   </div>
+  {% endif %}
 </div>
 
-<script src="{{ url_for('static', filename='js/quiz.js') }}"></script>
+{% if questions %}
+<script>
+let idx = 0;
+let items = {{ questions|tojson }};
+let attemptId = {{ attempt_id }};
+let answers = new Array(items.length).fill(null);
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>'"]/g, (ch) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[ch] || ch);
+}
+
+function render() {
+  const q = items[idx];
+  const qnum = document.getElementById('qnum');
+  const qtext = document.getElementById('qtext');
+  const box = document.getElementById('opts');
+  if (!qnum || !qtext || !box) { return; }
+  qnum.textContent = (idx + 1) + ' / ' + items.length;
+  qtext.textContent = q.question;
+  box.innerHTML = '';
+  (q.options || []).forEach((opt, i) => {
+    const id = `opt${idx}_${i}`;
+    const checked = (answers[idx] === opt) ? 'checked' : '';
+    box.insertAdjacentHTML('beforeend',
+      `<label class="quiz-option"><input type="radio" id="${id}" name="opt" value="${escapeHtml(opt)}" ${checked}
+         onchange="answers[idx]=this.value"> ${escapeHtml(opt)}</label>`);
+  });
+  const backBtn = document.getElementById('back');
+  const nextBtn = document.getElementById('next');
+  if (backBtn) backBtn.disabled = (idx === 0);
+  if (nextBtn) nextBtn.disabled = (idx === items.length - 1);
+}
+
+function backQ(){
+  idx = Math.max(0, idx - 1);
+  render();
+}
+function nextQ(){
+  idx = Math.min(items.length - 1, idx + 1);
+  render();
+}
+
+async function submitQuiz(){
+  const submitBtn = document.getElementById('submitBtn');
+  if (submitBtn) submitBtn.disabled = true;
+  const payload = {
+    student_id: {{ student_id }},
+    attempt_id: attemptId,
+    answers: items.map((q, i) => ({
+      quiz_id: q.quiz_id,
+      answer: answers[i] ?? "",
+      time_sec: 0
+    }))
+  };
+  let data = {};
+  try {
+    const res = await fetch('/submit', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      alert((data && data.error) || 'Unable to submit quiz.');
+      if (submitBtn) submitBtn.disabled = false;
+      return;
+    }
+  } catch (err) {
+    alert('Network error while submitting.');
+    if (submitBtn) submitBtn.disabled = false;
+    return;
+  }
+  const nextAttempt = (data && typeof data.attempt_id === 'number') ? data.attempt_id : attemptId;
+  window.location = `/review/${nextAttempt}`;
+}
+
+window.addEventListener('DOMContentLoaded', render);
+</script>
+{% endif %}
 {% endblock %}

@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block title %}Lecturer · Questions{% endblock %}
+{% block content %}
+<h2>Question Bank Performance</h2>
+<p class="muted">Track how each question performs across all attempts.</p>
+
+<table class="table">
+  <thead>
+    <tr><th>ID</th><th>Concept</th><th>Question</th><th>Correct %</th><th>Responses</th></tr>
+  </thead>
+  <tbody>
+    {% for q in qs %}
+      <tr>
+        <td>{{ q['quiz_id'] }}</td>
+        <td>{{ q['two_category'] or '—' }}</td>
+        <td class="question-text">{{ q['question'] }}</td>
+        <td>{{ q['correct_rate'] or 0 }}%</td>
+        <td>{{ q['n'] }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="5" class="muted">No questions available.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

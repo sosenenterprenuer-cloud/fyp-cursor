@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block title %}Review Attempt #{{ attempt['attempt_id'] }}{% endblock %}
+{% block content %}
+
+<h2>Attempt Review</h2>
+<p>
+  Score: <strong>{{ attempt['items_correct'] }}/{{ attempt['items_total'] }}</strong>
+  ({{ attempt['score_pct'] }}%) · Started: {{ attempt['started_at'] }} · Source: {{ attempt['source'] }}
+</p>
+
+<div class="cards">
+  <div class="card">
+    <h3>Recent Attempt Split</h3>
+    <ul>
+      <li><strong>Data Modeling &amp; DBMS Fundamentals</strong>: {{ fund_pct }}%</li>
+      <li><strong>Normalization &amp; Dependencies</strong>: {{ norm_pct }}%</li>
+    </ul>
+    {% if unlocked_next %}
+      <div class="notice success">✅ Perfect in both topics! Next recommendation: <strong>{{ next_topic_name }}</strong></div>
+      <p><a class="btn primary" href="/thanks">Give a rating</a></p>
+    {% else %}
+      <div class="notice warn">🔒 Get 100% in both topics (this recent quiz) to proceed.</div>
+    {% endif %}
+    {% if request.args.get('feedback') %}
+      <div class="notice success">⭐ Feedback has been submitted. Thank you!</div>
+    {% endif %}
+  </div>
+</div>
+
+<h3>Question-by-question</h3>
+<ol class="qa-list">
+  {% for it in items %}
+    <li class="card">
+      <div><strong>Q{{ it['quiz_id'] }}</strong> · <em>{{ it['two_category'] or '—' }}</em></div>
+      <p class="q">{{ it['question'] }}</p>
+      <p class="{{ 'good' if it['is_correct'] else 'bad' }}">
+        Your answer: <strong>{{ it['your_answer'] or '(blank)' }}</strong>
+        {% if not it['is_correct'] %} · Correct: <strong>{{ it['correct_answer'] }}</strong>{% endif %}
+      </p>
+      {% if not it['is_correct'] and it['explanation'] %}
+        <details><summary>Why?</summary><p>{{ it['explanation'] }}</p></details>
+      {% endif %}
+    </li>
+  {% endfor %}
+</ol>
+
+<p><a class="btn" href="/student/{{ session.student_id }}">Back to Dashboard</a></p>
+{% endblock %}
