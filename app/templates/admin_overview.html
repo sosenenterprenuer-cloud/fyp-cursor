@@ -1,21 +1,25 @@
 {% extends 'base.html' %}
-{% block title %}Lecturer · Overview{% endblock %}
+{% block title %}Home{% endblock %}
 {% block content %}
-<h2>Lecturer Overview</h2>
-<p class="muted">Welcome back, {{ session.get('lecturer_name', 'Lecturer') }}. Here is a quick look at platform activity.</p>
+<h2>Home</h2>
 
 <div class="cards overview-cards">
-  <div class="card"><strong>Students</strong><div class="metric">{{ totals['students'] if totals else 0 }}</div></div>
-  <div class="card"><strong>Attempts</strong><div class="metric">{{ totals['attempts'] if totals else 0 }}</div></div>
-  <div class="card"><strong>Responses</strong><div class="metric">{{ totals['responses'] if totals else 0 }}</div></div>
+  <div class="card"><strong>Students</strong><div class="metric">{{ totals['students_total'] if totals else 0 }}</div></div>
+  <div class="card"><strong>Attempts (all)</strong><div class="metric">{{ totals['attempts_total'] if totals else 0 }}</div></div>
+  <div class="card"><strong>Responses</strong><div class="metric">{{ totals['responses_total'] if totals else 0 }}</div></div>
+  <div class="card"><strong>Attempts w/ responses</strong><div class="metric">{{ totals['attempts_with_responses'] if totals else 0 }}</div></div>
 </div>
+
+{% if totals and totals['attempts_total'] > totals['attempts_with_responses'] %}
+  <div class="notice warn">Some attempts have zero answers (e.g., abandoned). That’s normal.</div>
+{% endif %}
 
 <h3>Accuracy by Concept</h3>
 <ul class="concept-breakdown">
   {% for r in by_cat %}
-    <li><strong>{{ r['cat'] or '—' }}</strong>: {{ r['acc'] or 0 }}% (n={{ r['n'] }})</li>
+    <li><strong>{{ r['cat'] or '—' }}</strong>: {{ r['acc_pct'] or 0 }}% (n={{ r['n_responses'] }})</li>
   {% else %}
-    <li class="muted">No responses recorded yet.</li>
+    <li class="muted">No responses yet.</li>
   {% endfor %}
 </ul>
 
@@ -24,31 +28,42 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
   const labels = {{ labels|tojson }};
-  const counts = {{ counts|tojson }};
+  const countsAll = {{ counts_all|tojson }};
+  const countsResp = {{ counts_resp|tojson }};
   const ctx = document.getElementById('attemptsChart').getContext('2d');
   new Chart(ctx, {
     type: 'line',
     data: {
       labels,
-      datasets: [{
-        label: 'Attempts',
-        data: counts,
-        borderColor: '#4f46e5',
-        backgroundColor: 'rgba(79,70,229,0.15)',
-        fill: true,
-        tension: 0.3
-      }]
+      datasets: [
+        {
+          label: 'Attempts',
+          data: countsAll,
+          borderColor: '#4f46e5',
+          backgroundColor: 'rgba(79,70,229,0.15)',
+          fill: true,
+          tension: 0.3
+        },
+        {
+          label: 'Attempts with Responses',
+          data: countsResp,
+          borderColor: '#22c55e',
+          backgroundColor: 'rgba(34,197,94,0.12)',
+          fill: true,
+          tension: 0.3
+        }
+      ]
     },
     options: {
       responsive: true,
-      plugins: { legend: { display: false } },
+      plugins: { legend: { display: true } },
       scales: { y: { beginAtZero: true, precision: 0 } }
     }
   });
 </script>
 
 <p class="admin-links">
-  <a class="btn" href="{{ url_for('admin_students') }}">View Students</a>
-  <a class="btn" href="{{ url_for('admin_questions') }}">Question Performance</a>
+  <a class="btn" href="{{ url_for('admin_students') }}">Students</a>
+  <a class="btn" href="{{ url_for('admin_questions') }}">Questions</a>
 </p>
 {% endblock %}

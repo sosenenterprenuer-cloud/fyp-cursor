@@ -1038,17 +1038,18 @@ def admin_overview():
         totals = conn.execute(
             """
             SELECT
-              (SELECT COUNT(*) FROM student)   AS students,
-              (SELECT COUNT(*) FROM attempt)   AS attempts,
-              (SELECT COUNT(*) FROM response)  AS responses
+              (SELECT COUNT(*) FROM student) AS students_total,
+              (SELECT COUNT(*) FROM attempt) AS attempts_total,
+              (SELECT COUNT(*) FROM response) AS responses_total,
+              (SELECT COUNT(DISTINCT attempt_id) FROM response) AS attempts_with_responses
             """,
         ).fetchone()
 
         by_cat = conn.execute(
             """
             SELECT q.two_category AS cat,
-                   ROUND(AVG(r.score) * 100, 1) AS acc,
-                   COUNT(*) AS n
+                   ROUND(AVG(r.score) * 100, 1) AS acc_pct,
+                   COUNT(*) AS n_responses
             FROM response r
             JOIN quiz q ON q.quiz_id = r.quiz_id
             GROUP BY q.two_category
@@ -1056,28 +1057,49 @@ def admin_overview():
             """,
         ).fetchall()
 
-        recent_rows = conn.execute(
+        recent_all = conn.execute(
             """
-            SELECT substr(started_at, 1, 10) AS d, COUNT(*) AS n
+            SELECT substr(started_at, 1, 10) AS day, COUNT(*) AS n
             FROM attempt
-            GROUP BY d
-            ORDER BY d DESC
+            GROUP BY day
+            ORDER BY day DESC
             LIMIT 14
             """,
         ).fetchall()
 
-    labels = [r["d"] for r in recent_rows][::-1]
-    counts = [int(r["n"] or 0) for r in recent_rows][::-1]
+        recent_with_resp = conn.execute(
+            """
+            SELECT t.day, COUNT(DISTINCT a.attempt_id) AS n
+            FROM (
+                SELECT substr(started_at, 1, 10) AS day, attempt_id
+                FROM attempt
+            ) a
+            JOIN response r ON r.attempt_id = a.attempt_id
+            JOIN (
+                SELECT substr(started_at, 1, 10) AS day
+                FROM attempt
+                GROUP BY 1
+            ) t ON t.day = a.day
+            GROUP BY t.day
+            ORDER BY t.day DESC
+            LIMIT 14
+            """,
+        ).fetchall()
 
-    if not labels:
-        labels, counts = [], []
+    all_map = {row["day"]: int(row["n"] or 0) for row in recent_all}
+    resp_map = {row["day"]: int(row["n"] or 0) for row in recent_with_resp}
+    days = sorted(set(all_map.keys()) | set(resp_map.keys()))
+    labels = days[-14:]
+    counts_all = [all_map.get(day, 0) for day in labels]
+    counts_resp = [resp_map.get(day, 0) for day in labels]
 
     return render_template(
         "admin_overview.html",
         totals=totals,
         by_cat=by_cat,
         labels=labels,
-        counts=counts,
+        counts_all=counts_all,
+        counts_resp=counts_resp,
     )
 
 
@@ -1169,8 +1191,12 @@ def admin_questions():
                    COUNT(r.response_id) AS n
             FROM quiz q
             LEFT JOIN response r ON r.quiz_id = q.quiz_id
+            WHERE q.two_category IN (
+                'Data Modeling & DBMS Fundamentals',
+                'Normalization & Dependencies'
+            )
             GROUP BY q.quiz_id
-            ORDER BY q.quiz_id
+            ORDER BY q.two_category, q.quiz_id
             """,
         ).fetchall()
     return render_template("admin_questions.html", qs=qs)

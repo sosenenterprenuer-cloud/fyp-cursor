@@ -140,6 +140,9 @@ def _top_up_questions(conn, rows: List[Mapping[str, str]]) -> int:
     )
 
     for row in rows:
+        category = (row.get("two_category", "") or "").strip()
+        if category not in ALLOWED_CATEGORIES:
+            continue
         question = row.get("question", "").strip()
         if not question or question in existing:
             continue
@@ -152,7 +155,7 @@ def _top_up_questions(conn, rows: List[Mapping[str, str]]) -> int:
                 row.get("nf_level", ""),
                 row.get("concept_tag", ""),
                 row.get("explanation", ""),
-                row.get("two_category", ""),
+                category,
             ),
         )
         existing.add(question)
